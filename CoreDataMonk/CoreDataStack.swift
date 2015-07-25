@@ -146,6 +146,15 @@ public class CoreDataStack {
                     throw err
                 }
                 
+                let path = fileURL.path!
+                for file in [ path, path + "-shm", path + "-wal"] {
+                    do {
+                        try fileManager.removeItemAtPath(file)
+                    } catch {
+                        // ignore
+                    }
+                }
+                
                 retried = true
             }
         }
