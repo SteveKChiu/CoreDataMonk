@@ -203,14 +203,14 @@ public func <= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 //---------------------------------------------------------------------------
 
 public struct CoreDataSelect {
-    let properties: [NSExpressionDescription]
+    private let descriptions: [AnyObject]
     
-    private init(_ expression: NSExpressionDescription) {
-        self.properties = [ expression ]
+    private init(_ expression: AnyObject) {
+        self.descriptions = [ expression ]
     }
 
-    private init(_ expressions: [NSExpressionDescription]) {
-        self.properties = expressions
+    private init(_ expressions: [AnyObject]) {
+        self.descriptions = expressions
     }
 
     private init(function: String, property: String, alias: String?, type: NSAttributeType) {
@@ -220,20 +220,11 @@ public struct CoreDataSelect {
         description.name = alias ?? "\(function)(\(property))"
         description.expression = expression
         description.expressionResultType = type
-        self.properties = [ description ]
+        self.descriptions = [ description ]
     }
     
     public static func Select(keys: String...) -> CoreDataSelect {
-        var expressions = [NSExpressionDescription]()
-        for key in keys {
-            let property = NSExpression(forKeyPath: key)
-            let description = NSExpressionDescription()
-            description.name = key
-            description.expression = property
-            description.expressionResultType = .UndefinedAttributeType
-            expressions.append(description)
-        }
-        return CoreDataSelect(expressions)
+        return CoreDataSelect(keys)
     }
     
     public static func Expression(expression: NSExpressionDescription) -> CoreDataSelect {
@@ -241,36 +232,89 @@ public struct CoreDataSelect {
     }
     
     public static func Sum(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "sum:", property: property, alias: alias, type: .DoubleAttributeType)
+        return CoreDataSelect(function: "sum:", property: property, alias: alias, type: .DecimalAttributeType)
     }
     
     public static func Average(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "average:", property: property, alias: alias, type: .DoubleAttributeType)
+        return CoreDataSelect(function: "average:", property: property, alias: alias, type: .DecimalAttributeType)
     }
 
     public static func StdDev(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "stddev:", property: property, alias: alias, type: .DoubleAttributeType)
+        return CoreDataSelect(function: "stddev:", property: property, alias: alias, type: .DecimalAttributeType)
     }
 
     public static func Count(property: String, alias: String? = nil) -> CoreDataSelect {
         return CoreDataSelect(function: "count:", property: property, alias: alias, type: .Integer64AttributeType)
     }
 
-    public static func Max(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "max:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Max(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
+        return CoreDataSelect(function: "max:", property: property, alias: alias, type: type)
     }
 
-    public static func Min(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "min:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Min(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
+        return CoreDataSelect(function: "min:", property: property, alias: alias, type: type)
     }
 
-    public static func Median(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "median:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Median(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
+        return CoreDataSelect(function: "median:", property: property, alias: alias, type: type)
+    }
+    
+    private func keyPathResultType(key: String, entity: NSEntityDescription) throws -> NSAttributeType {
+        if let r = key.rangeOfString(".") {
+            let name = key.substringToIndex(r.startIndex)
+            let next = key.substringFromIndex(r.startIndex.successor())
+            
+            guard let relate = entity.relationshipsByName[name]?.destinationEntity else {
+                throw CoreDataError("Can not find relationship [\(name)] of [\(entity.name)]")
+            }
+            return try keyPathResultType(next, entity: relate)
+        }
+    
+        guard let attr = entity.attributesByName[key] else {
+            throw CoreDataError("Can not find attribute [\(key)] of [\(entity.name)]")
+        }
+        return attr.attributeType
+    }
+    
+    func resolve(entity: NSEntityDescription) throws -> [AnyObject] {
+        var properties = [AnyObject]()
+        for unknownDescription in self.descriptions {
+            if unknownDescription is String {
+                properties.append(unknownDescription)
+                continue
+            }
+            
+            guard let description = unknownDescription as? NSExpressionDescription else {
+                throw CoreDataError("Can not resolve property \(unknownDescription)")
+            }
+            
+            guard description.expressionResultType == .UndefinedAttributeType else {
+                properties.append(description)
+                continue
+            }
+            
+            let expression = description.expression!
+            switch expression.expressionType {
+            case .KeyPathExpressionType:
+                properties.append(expression.keyPath)
+                
+            case .FunctionExpressionType:
+                guard let argument = expression.arguments?.first where argument.expressionType == .KeyPathExpressionType else {
+                    throw CoreDataError("Can not resolve function result type unless its argument is key path: \(expression)")
+                }
+                description.expressionResultType = try keyPathResultType(argument.keyPath, entity: entity)
+                properties.append(description)
+            
+            default:
+                throw CoreDataError("Can not resolve result type of expression: \(expression)")
+            }
+        }
+        return properties
     }
 }
 
 public func | (lhs: CoreDataSelect, rhs: CoreDataSelect) -> CoreDataSelect {
-    return CoreDataSelect(lhs.properties + rhs.properties)
+    return CoreDataSelect(lhs.descriptions + rhs.descriptions)
 }
 
 //---------------------------------------------------------------------------
@@ -328,7 +372,7 @@ public enum CoreDataQueryOptions {
         }
     }
 
-    func apply(request: NSFetchRequest) {
+    func apply(request: NSFetchRequest) throws {
         switch self {
         case .NoSubEntities:
             request.includesSubentities = false
@@ -362,7 +406,7 @@ public enum CoreDataQueryOptions {
             
         case let .Multiple(list):
             for option in list {
-                option.apply(request)
+                try option.apply(request)
             }
         }
     }

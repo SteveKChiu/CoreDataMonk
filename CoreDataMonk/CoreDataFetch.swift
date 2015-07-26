@@ -64,7 +64,7 @@ public extension CoreDataFetch {
         request.fetchLimit = 1
         request.resultType = .ManagedObjectResultType
         request.predicate = query.predicate
-        options?.apply(request)
+        try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request).first as! T
     }
@@ -75,7 +75,7 @@ public extension CoreDataFetch {
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        options?.apply(request)
+        try options?.apply(request)
         
         var error: NSError?
         let count = self.managedObjectContext.countForFetchRequest(request, error: &error)
@@ -94,7 +94,7 @@ public extension CoreDataFetch {
         request.resultType = .ManagedObjectResultType
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy?.descriptors
-        options?.apply(request)
+        try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request) as! [T]
     }
@@ -107,7 +107,7 @@ public extension CoreDataFetch {
         request.fetchLimit = 1
         request.resultType = .ManagedObjectIDResultType
         request.predicate = query.predicate
-        options?.apply(request)
+        try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request).first as! NSManagedObjectID
     }
@@ -121,7 +121,7 @@ public extension CoreDataFetch {
         request.resultType = .ManagedObjectIDResultType
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy?.descriptors
-        options?.apply(request)
+        try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request) as! [NSManagedObjectID]
     }
@@ -133,9 +133,9 @@ public extension CoreDataFetch {
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 1
         request.resultType = .DictionaryResultType
-        request.propertiesToFetch = select.properties
+        request.propertiesToFetch = try select.resolve(meta.entity)
         request.predicate = query?.predicate
-        options?.apply(request)
+        try options?.apply(request)
         
         let result = try self.managedObjectContext.executeFetchRequest(request).first as! NSDictionary
         return result.allValues.first!
@@ -148,12 +148,12 @@ public extension CoreDataFetch {
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
         request.resultType = .DictionaryResultType
-        request.propertiesToFetch = select.properties
+        request.propertiesToFetch = try select.resolve(meta.entity)
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy?.descriptors
         request.propertiesToGroupBy = groupBy?.list
         request.havingPredicate = having?.predicate
-        options?.apply(request)
+        try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request) as! [[String: AnyObject]]
     }

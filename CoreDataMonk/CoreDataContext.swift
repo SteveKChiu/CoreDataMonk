@@ -175,7 +175,7 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         request.resultType = .ManagedObjectResultType
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy.descriptors
-        options?.apply(request)
+        try options?.apply(request)
                 
         return NSFetchedResultsController(fetchRequest: request, managedObjectContext: self.mainContext!, sectionNameKeyPath: sectionBy?.path, cacheName: nil)
     }
