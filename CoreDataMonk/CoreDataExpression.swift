@@ -306,11 +306,14 @@ public func | (lhs: CoreDataOrderBy, rhs: CoreDataOrderBy) -> CoreDataOrderBy {
 //---------------------------------------------------------------------------
 
 public enum CoreDataQueryOptions {
-    case EntitiyOnly
+    case NoSubEntities
+    case NoPendingChanges
+    case NoPropertyValues
     case Limit(Int)
     case Offset(Int)
     case Batch(Int)
-    case Prefetch(String)
+    case Prefetch([String])
+    case PropertiesOnly([String])
     case Distinct
     case Tweak(NSFetchRequest -> Void)
     case Multiple([CoreDataQueryOptions])
@@ -327,9 +330,15 @@ public enum CoreDataQueryOptions {
 
     func apply(request: NSFetchRequest) {
         switch self {
-        case .EntitiyOnly:
+        case .NoSubEntities:
+            request.includesSubentities = false
+            
+        case .NoPendingChanges:
             request.includesPendingChanges = false
             
+        case .NoPropertyValues:
+            request.includesPropertyValues = false
+
         case let .Limit(limit):
             request.fetchLimit = limit
             
@@ -339,13 +348,11 @@ public enum CoreDataQueryOptions {
         case let .Batch(size):
             request.fetchBatchSize = size
             
-        case let .Prefetch(key):
-            if var keys = request.relationshipKeyPathsForPrefetching {
-                keys.append(key)
-                request.relationshipKeyPathsForPrefetching = keys
-            } else {
-                request.relationshipKeyPathsForPrefetching = [ key ]
-            }
+        case let .Prefetch(keys):
+            request.relationshipKeyPathsForPrefetching = keys
+         
+        case let .PropertiesOnly(keys):
+            request.propertiesToFetch = keys
             
         case .Distinct:
             request.returnsDistinctResults = true
