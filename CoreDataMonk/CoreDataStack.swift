@@ -29,10 +29,8 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-extension NSError {
-    convenience init(CoreDataError message: String) {
-        self.init(domain: "CoreDataStack", code: 0, userInfo: [NSLocalizedDescriptionKey: message])
-    }
+func CoreDataError(message: String) -> NSError {
+    return NSError(domain: "CoreDataStack", code: 0, userInfo: [NSLocalizedDescriptionKey: message])
 }
 
 //---------------------------------------------------------------------------
@@ -59,7 +57,7 @@ public class CoreDataStack {
                   model = NSManagedObjectModel(contentsOfURL: modelUrl) else {
             self.coordinator = nil
             self.rootContext = nil
-            throw NSError(CoreDataError: "Can not load core data model from '\(modelName)'")
+            throw CoreDataError("Can not load core data model from '\(modelName)'")
         }
         
         self.coordinator = NSPersistentStoreCoordinator(managedObjectModel: model)
@@ -108,7 +106,7 @@ public class CoreDataStack {
                 return
             }
             
-            throw NSError(CoreDataError: "Fail to add SQLite persistent store at \"\(fileURL)\", because a different one at that URL already exists")
+            throw CoreDataError("Fail to add SQLite persistent store at \"\(fileURL)\", because a different one at that URL already exists")
         }
         
         let fileManager = NSFileManager.defaultManager()
@@ -166,22 +164,23 @@ public class CoreDataStack {
         if let entities = self.coordinator.managedObjectModel.entitiesForConfiguration(store.configurationName) {
             for entity in entities {
                 guard self.metadata[entity.managedObjectClassName] == nil else {
-                    throw NSError(CoreDataError: "Class \(entity.managedObjectClassName) has been mapped to \(entity.name!), one class can only map to one entity")
+                    throw CoreDataError("Class \(entity.managedObjectClassName) has been mapped to \(entity.name!), one class can only map to one entity")
                 }
                 self.metadata[entity.managedObjectClassName] = (entity: entity, store: store)
             }
         }
     }
 
-    func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    public func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         if let meta = self.metadata[NSStringFromClass(type)] {
             return meta
         } else {
-            throw NSError(CoreDataError: "Class \(NSStringFromClass(type)) is not a registered NSManagedObject class")
+            throw CoreDataError("Class \(NSStringFromClass(type)) is not a registered NSManagedObject class")
         }
     }
     
-    func handleError(error: NSError) {
+    public func handleError(error: ErrorType) {
+        let error = error as NSError
         NSLog("CoreDataStack: error = %@", error)
         self.lastError = error
         self.onError?(error)

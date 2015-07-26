@@ -31,7 +31,8 @@ import CoreData
 
 public protocol CoreDataFetch {
     var managedObjectContext: NSManagedObjectContext { get }
-    var coreDataStack: CoreDataStack { get }
+
+    func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore)
 }
 
 public extension CoreDataFetch {
@@ -56,7 +57,7 @@ public extension CoreDataFetch {
     }
 
     public final func fetch<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery, options: CoreDataQueryOptions? = nil) throws -> T {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -69,7 +70,7 @@ public extension CoreDataFetch {
     }
 
     public final func fetchCount<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> Int {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -85,7 +86,7 @@ public extension CoreDataFetch {
     }
 
     public final func fetchAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [T] {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -99,7 +100,7 @@ public extension CoreDataFetch {
     }
 
     public final func fetchID<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery, options: CoreDataQueryOptions? = nil) throws -> NSManagedObjectID {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -112,7 +113,7 @@ public extension CoreDataFetch {
     }
 
     public final func fetchAllIDs<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [NSManagedObjectID] {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -126,7 +127,7 @@ public extension CoreDataFetch {
     }
 
     public func queryValue<T: NSManagedObject>(type: T.Type, _ select: CoreDataSelect, _ query: CoreDataQuery? = nil, options: CoreDataQueryOptions? = nil) throws -> AnyObject {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
@@ -141,7 +142,7 @@ public extension CoreDataFetch {
     }
     
     public func query<T: NSManagedObject>(type: T.Type, _ select: CoreDataSelect, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, groupBy: CoreDataQueryKey? = nil, having: CoreDataQuery? = nil, options: CoreDataQueryOptions? = nil) throws -> [[String: AnyObject]] {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]

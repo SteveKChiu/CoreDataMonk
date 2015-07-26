@@ -55,10 +55,6 @@ public class CoreDataContext {
         }
     }
 
-    public var coreDataStack: CoreDataStack {
-        return self.stack
-    }
-    
     let mainContext: NSManagedObjectContext?
     let stack: CoreDataStack
     let updateTarget: UpdateTargetType
@@ -79,17 +75,17 @@ public class CoreDataContext {
         switch updateTarget{
         case .MainContext:
             guard mainContext != nil else {
-                throw NSError(CoreDataError: "CoreDataContext.UpdateTarget(.MainContext) need MainContext but it is not specified")
+                throw CoreDataError("CoreDataContext.UpdateTarget(.MainContext) need MainContext but it is not specified")
             }
         
         case let .RootContext(autoMerge: autoMerge):
             guard let rootContext = stack.rootContext else {
-                throw NSError(CoreDataError: "CoreDataContext.UpdateTarget(.RootContext) need RootContext but CoreDataStack does not have one")
+                throw CoreDataError("CoreDataContext.UpdateTarget(.RootContext) need RootContext but CoreDataStack does not have one")
             }
             
             if autoMerge {
                 guard let mainContext = mainContext else {
-                    throw NSError(CoreDataError: "CoreDataContext.UpdateTarget(.RootContext) need to auto merge MainContext but it is not specified")
+                    throw CoreDataError("CoreDataContext.UpdateTarget(.RootContext) need to auto merge MainContext but it is not specified")
                 }
 
                 self.autoMergeObserver = Observer(notification: NSManagedObjectContextDidSaveNotification, object: rootContext, queue: nil) {
@@ -104,6 +100,10 @@ public class CoreDataContext {
         default:
             break
         }
+    }
+
+    public func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+        return try self.stack.metadataForEntityClass(type)
     }
 
     public func observeDidCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> Observer {
@@ -148,10 +148,6 @@ public class CoreDataContext {
 //---------------------------------------------------------------------------
 
 public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
-    public var managedObjectContext: NSManagedObjectContext {
-        return self.mainContext!
-    }
-
     public init(stack: CoreDataStack, updateTarget: UpdateTargetType = .MainContext, updateQueue: UpdateQueueType = .Concurrent) throws {
         let context = NSManagedObjectContext(concurrencyType: .MainQueueConcurrencyType)
         context.name = "CoreDataMainContext"
@@ -166,8 +162,12 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         try super.init(stack: stack, mainContext: context, updateTarget: updateTarget, updateQueue: updateQueue)
     }
     
+    public var managedObjectContext: NSManagedObjectContext {
+        return self.mainContext!
+    }
+
     public func fetchResults<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController {
-        let meta = try self.stack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]

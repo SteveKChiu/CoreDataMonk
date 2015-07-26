@@ -46,31 +46,33 @@ public struct CoreDataQuery {
 }
 
 public func && (lhs: CoreDataQuery, rhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .AndPredicateType, subpredicates: [lhs.predicate, rhs.predicate]))
+    return .Where(NSCompoundPredicate(type: .AndPredicateType, subpredicates: [ lhs.predicate, rhs.predicate ]))
 }
 
 public func || (lhs: CoreDataQuery, rhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .OrPredicateType, subpredicates: [lhs.predicate, rhs.predicate]))
+    return .Where(NSCompoundPredicate(type: .OrPredicateType, subpredicates: [ lhs.predicate, rhs.predicate ]))
 }
 
 public prefix func ! (lhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .NotPredicateType, subpredicates: [lhs.predicate]))
+    return .Where(NSCompoundPredicate(type: .NotPredicateType, subpredicates: [ lhs.predicate ]))
 }
 
 //---------------------------------------------------------------------------
 
-prefix operator % {}
-
 public enum CoreDataQueryKey {
     case Key(String)
+    case KeyModifier(String, NSComparisonPredicateModifier)
     case KeyPath([String])
     
     var path: String {
         switch self {
-        case let Key(path):
+        case let .Key(path):
             return path
             
-        case let KeyPath(list):
+        case let .KeyModifier(path, _):
+            return path
+
+        case let .KeyPath(list):
             var path = list.first!
             for item in list[1 ..< list.count] {
                 path += "."
@@ -80,26 +82,69 @@ public enum CoreDataQueryKey {
         }
     }
     
+    var modifier: NSComparisonPredicateModifier {
+        switch self {
+        case let .KeyModifier(_, mod):
+            return mod
+
+        default:
+            return .DirectPredicateModifier
+        }
+    }
+    
     var list: [String] {
         switch self {
-        case let Key(path):
-            return [path]
+        case let .Key(path):
+            return [ path ]
             
-        case let KeyPath(list):
+        case let .KeyModifier(path, _):
+            return [ path ]
+            
+        case let .KeyPath(list):
             return list
         }
     }
     
-    private func compare(op: String, _ value: CoreDataQueryKey) -> CoreDataQuery {
-        return .Where("%K \(op) %K", self.path, value.path)
+    public var any: CoreDataQueryKey {
+        return .KeyModifier(self.path, .AllPredicateModifier)
     }
 
-    private func compare(op: String, _ value: Any) -> CoreDataQuery {
-        return .Where("%K \(op) %@", self.path, value as! AnyObject)
+    public var all: CoreDataQueryKey {
+        return .KeyModifier(self.path, .AnyPredicateModifier)
+    }
+    
+    private func compare(op: NSPredicateOperatorType, _ key: CoreDataQueryKey) -> CoreDataQuery {
+        return .Where(NSComparisonPredicate(
+                leftExpression: NSExpression(forKeyPath: self.path),
+                rightExpression: NSExpression(forKeyPath: key.path),
+                modifier: self.modifier,
+                type: op,
+                options: []))
+    }
+
+    private func compare(op: NSPredicateOperatorType, _ value: AnyObject) -> CoreDataQuery {
+        return .Where(NSComparisonPredicate(
+                leftExpression: NSExpression(forKeyPath: self.path),
+                rightExpression: NSExpression(forConstantValue: value),
+                modifier: self.modifier,
+                type: op,
+                options: []))
     }
 }
 
+prefix operator % {}
+
+postfix operator % {}
+
+public prefix func % (key: CoreDataQueryKey) -> CoreDataQueryKey {
+    return key
+}
+
 public prefix func % (name: String) -> CoreDataQueryKey {
+    return CoreDataQueryKey.Key(name)
+}
+
+public postfix func % (name: String) -> CoreDataQueryKey {
     return CoreDataQueryKey.Key(name)
 }
 
@@ -107,52 +152,52 @@ public func | (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQueryKey
     return .KeyPath(lhs.list + rhs.list)
 }
 
-public func == (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare("==", rhs)
+public func == (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
+    return lhs.compare(.EqualToPredicateOperatorType, (rhs ??  NSNull()) as! AnyObject)
 }
 
 public func == (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare("==", rhs)
+    return lhs.compare(.EqualToPredicateOperatorType, rhs)
 }
 
-public func != (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare("!=", rhs)
+public func != (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
+    return lhs.compare(.NotEqualToPredicateOperatorType, (rhs ??  NSNull()) as! AnyObject)
 }
 
 public func != (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare("!=", rhs)
+    return lhs.compare(.NotEqualToPredicateOperatorType, rhs)
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(">", rhs)
+    return lhs.compare(.GreaterThanPredicateOperatorType, rhs as! AnyObject)
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(">", rhs)
+    return lhs.compare(.GreaterThanPredicateOperatorType, rhs)
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare("<", rhs)
+    return lhs.compare(.LessThanPredicateOperatorType, rhs as! AnyObject)
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare("<", rhs)
+    return lhs.compare(.LessThanPredicateOperatorType, rhs)
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(">=", rhs)
+    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs as! AnyObject)
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(">=", rhs)
+    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs)
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare("<=", rhs)
+    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs as! AnyObject)
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare("<=", rhs)
+    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs)
 }
 
 //---------------------------------------------------------------------------

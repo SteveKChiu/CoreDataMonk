@@ -40,6 +40,10 @@ public class CoreDataTransaction {
         self.autoMerge = autoMerge
     }
 
+    public func handleError(error: ErrorType) {
+        self.origin.stack.handleError(error)
+    }
+    
     public func perform(block: (CoreDataUpdate) throws -> Void) {
         if let queue = self.origin.updateQueue {
             dispatch_async(queue) {
@@ -50,7 +54,7 @@ public class CoreDataTransaction {
                     do {
                         try block(update)
                     } catch let error {
-                        self.origin.coreDataStack.handleError(error as NSError)
+                        self.handleError(error)
                     }
                     dispatch_group_leave(group)
                 }
@@ -62,7 +66,7 @@ public class CoreDataTransaction {
                 do {
                     try block(update)
                 } catch let error {
-                    self.origin.coreDataStack.handleError(error as NSError)
+                    self.handleError(error)
                 }
             }
         }
@@ -78,7 +82,7 @@ public class CoreDataTransaction {
                     do {
                         try block(update)
                     } catch let error {
-                        self.origin.coreDataStack.handleError(error as NSError)
+                        self.handleError(error)
                     }
                     dispatch_group_leave(group)
                 }
@@ -90,7 +94,7 @@ public class CoreDataTransaction {
                 do {
                     try block(update)
                 } catch let error {
-                    self.origin.coreDataStack.handleError(error as NSError)
+                    self.handleError(error)
                 }
             }
         }
@@ -112,11 +116,7 @@ public class CoreDataTransaction {
         perform() {
             trans in
             
-            do {
-                try trans.commit()
-            } catch let error {
-                trans.coreDataStack.handleError(error as NSError)
-            }
+            try trans.commit()
         }
     }
     
@@ -136,14 +136,6 @@ public class CoreDataUpdate : CoreDataFetch {
     let transaction: CoreDataTransaction
     let group: dispatch_group_t?
     
-    public var managedObjectContext: NSManagedObjectContext {
-        return self.context
-    }
-    
-    public var coreDataStack: CoreDataStack {
-        return self.transaction.origin.coreDataStack
-    }
-    
     init(context: NSManagedObjectContext, transaction: CoreDataTransaction, group: dispatch_group_t?) {
         self.context = context
         self.transaction = transaction
@@ -160,19 +152,66 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
+    public var managedObjectContext: NSManagedObjectContext {
+        return self.context
+    }
+    
+    public func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+        return try self.transaction.origin.metadataForEntityClass(type)
+    }
+
     public func create<T: NSManagedObject>(type: T.Type) throws -> T {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let obj = T(entity: meta.entity, insertIntoManagedObjectContext: self.context)
         self.context.assignObject(obj, toPersistentStore: meta.store)
         return obj
     }
 
-    public func fetchOrCreate<T: NSManagedObject>(type: T.Type, key: String, value: AnyObject) throws -> T {
+    private func applyProperties(obj: NSManagedObject, predicate: NSPredicate) throws {
+        if let comp = predicate as? NSComparisonPredicate {
+            guard comp.predicateOperatorType == .EqualToPredicateOperatorType else {
+                throw CoreDataError("fetchOrCreate: only == and && are supported")
+            }
+            
+            guard comp.leftExpression.expressionType == .KeyPathExpressionType else {
+                throw CoreDataError("fetchOrCreate: left hand side of == must be key path")
+            }
+            
+            switch comp.rightExpression.expressionType {
+            case .KeyPathExpressionType:
+                let value = obj.valueForKeyPath(comp.rightExpression.keyPath)
+                obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
+                
+            case .ConstantValueExpressionType:
+                var value: AnyObject? = comp.rightExpression.constantValue
+                value = value is NSNull ? nil : value
+                obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
+                
+            default:
+                throw CoreDataError("fetchOrCreate: right hand side of == must be key path or constant value")
+            }
+            return
+        }
+        
+        if let comp = predicate as? NSCompoundPredicate {
+            guard comp.compoundPredicateType == .AndPredicateType else {
+                throw CoreDataError("fetchOrCreate: only == and && are supported")
+            }
+            
+            try applyProperties(obj, predicate: comp.subpredicates[0] as! NSPredicate)
+            try applyProperties(obj, predicate: comp.subpredicates[1] as! NSPredicate)
+            return
+        }
+        
+        throw CoreDataError("Only == and && are supported in fetchOrCreate")
+    }
+
+    public func fetchOrCreate<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery) throws -> T {
         do {
-            return try fetch(type, .Where("%K == %@", key, value))
+            return try fetch(type, query)
         } catch {
             let obj = try create(type)
-            (obj as NSManagedObject).setValue(value, forKey: key)
+            try applyProperties(obj, predicate: query.predicate)
             return obj
         }
     }
@@ -188,7 +227,7 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     public final func deleteAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws {
-        let meta = try self.coreDataStack.metadataForEntityClass(type)
+        let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.fetchLimit = 0
@@ -204,7 +243,7 @@ public class CoreDataUpdate : CoreDataFetch {
             do {
                 try block(self)
             } catch let error {
-                self.coreDataStack.handleError(error as NSError)
+                self.transaction.handleError(error)
             }
         }
     }
@@ -217,7 +256,7 @@ public class CoreDataUpdate : CoreDataFetch {
                 do {
                     try self.saveContext(parent)
                 } catch let error {
-                    self.coreDataStack.handleError(error as NSError)
+                    self.transaction.handleError(error)
                 }
             }
         } else {
