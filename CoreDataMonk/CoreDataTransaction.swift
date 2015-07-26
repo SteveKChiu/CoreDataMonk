@@ -46,7 +46,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(context: self.context, transaction: self, performGroup: group)
+                    let update = CoreDataUpdate(context: self.context, transaction: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -58,7 +58,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlock() {
-                let update = CoreDataUpdate(context: self.context, transaction: self, performGroup: nil)
+                let update = CoreDataUpdate(context: self.context, transaction: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -74,7 +74,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(context: self.context, transaction: self, performGroup: group)
+                    let update = CoreDataUpdate(context: self.context, transaction: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -86,7 +86,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlockAndWait() {
-                let update = CoreDataUpdate(context: self.context, transaction: self, performGroup: nil)
+                let update = CoreDataUpdate(context: self.context, transaction: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -96,6 +96,18 @@ public class CoreDataTransaction {
         }
     }
     
+    public func wait() {
+        if let queue = self.origin.updateQueue {
+            dispatch_sync(queue) {
+                // do nothing
+            }
+        } else {
+            self.context.performBlockAndWait() {
+                // do nothing
+            }
+        }
+    }
+
     public func commit() {
         perform() {
             trans in
@@ -122,7 +134,7 @@ public class CoreDataTransaction {
 public class CoreDataUpdate : CoreDataFetch {
     let context: NSManagedObjectContext
     let transaction: CoreDataTransaction
-    let performGroup: dispatch_group_t?
+    let group: dispatch_group_t?
     
     public var managedObjectContext: NSManagedObjectContext {
         return self.context
@@ -132,10 +144,20 @@ public class CoreDataUpdate : CoreDataFetch {
         return self.transaction.origin.coreDataStack
     }
     
-    init(context: NSManagedObjectContext, transaction: CoreDataTransaction, performGroup: dispatch_group_t?) {
+    init(context: NSManagedObjectContext, transaction: CoreDataTransaction, group: dispatch_group_t?) {
         self.context = context
         self.transaction = transaction
-        self.performGroup = performGroup
+        self.group = group
+
+        if let group = self.group {
+            dispatch_group_enter(group)
+        }
+    }
+    
+    deinit {
+        if let group = self.group {
+            dispatch_group_leave(group)
+        }
     }
 
     public func create<T: NSManagedObject>(type: T.Type) throws -> T {
@@ -178,23 +200,11 @@ public class CoreDataUpdate : CoreDataFetch {
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {
-        if let group = self.performGroup {
-            dispatch_group_enter(group)
-            self.context.performBlock() {
-                do {
-                    try block(self)
-                } catch let error {
-                    self.coreDataStack.handleError(error as NSError)
-                }
-                dispatch_group_leave(group)
-            }
-        } else {
-            self.context.performBlock() {
-                do {
-                    try block(self)
-                } catch let error {
-                    self.coreDataStack.handleError(error as NSError)
-                }
+        self.context.performBlock() {
+            do {
+                try block(self)
+            } catch let error {
+                self.coreDataStack.handleError(error as NSError)
             }
         }
     }

@@ -115,14 +115,14 @@ public class CoreDataContext {
     }
 
     public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
-        batchUpdate().perform(block)
+        beginTransaction().perform(block)
     }
 
     public func beginUpdateAndWait(block: (CoreDataUpdate) throws -> Void) {
-        batchUpdate().performAndWait(block)
+        beginTransaction().performAndWait(block)
     }
 
-    public func batchUpdate() -> CoreDataTransaction {
+    public func beginTransaction() -> CoreDataTransaction {
         let autoMerge: Bool
         let context = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
         context.name = "CoreDataTransaction"
