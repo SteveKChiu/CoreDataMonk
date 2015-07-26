@@ -79,7 +79,7 @@ public class CoreDataContext {
             }
         
         case let .RootContext(autoMerge: autoMerge):
-            guard let rootContext = stack.rootContext else {
+            guard let rootContext = stack.rootManagedObjectContext else {
                 throw CoreDataError("CoreDataContext.UpdateTarget(.RootContext) need RootContext but CoreDataStack does not have one")
             }
             
@@ -102,7 +102,7 @@ public class CoreDataContext {
         }
     }
 
-    public func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    public final func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         return try self.stack.metadataForEntityClass(type)
     }
 
@@ -133,11 +133,11 @@ public class CoreDataContext {
             autoMerge = true
             
         case let .RootContext(autoMerge: flag):
-            context.parentContext = self.stack.rootContext
+            context.parentContext = self.stack.rootManagedObjectContext
             autoMerge = flag
             
         case .PersistentStore:
-            context.persistentStoreCoordinator = self.stack.coordinator
+            context.persistentStoreCoordinator = self.stack.persistentStoreCoordinator
             autoMerge = false
         }
         
@@ -153,16 +153,16 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         context.name = "CoreDataMainContext"
         context.mergePolicy = NSRollbackMergePolicy
         context.undoManager = nil
-        if let rootContext = stack.rootContext {
+        if let rootContext = stack.rootManagedObjectContext {
             context.parentContext = rootContext
         } else {
-            context.persistentStoreCoordinator = stack.coordinator
+            context.persistentStoreCoordinator = stack.persistentStoreCoordinator
         }
         
         try super.init(stack: stack, mainContext: context, updateTarget: updateTarget, updateQueue: updateQueue)
     }
     
-    public var managedObjectContext: NSManagedObjectContext {
+    public final var managedObjectContext: NSManagedObjectContext {
         return self.mainContext!
     }
 
@@ -177,7 +177,7 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         request.sortDescriptors = orderBy.descriptors
         try options?.apply(request)
                 
-        return NSFetchedResultsController(fetchRequest: request, managedObjectContext: self.mainContext!, sectionNameKeyPath: sectionBy?.path, cacheName: nil)
+        return NSFetchedResultsController(fetchRequest: request, managedObjectContext: self.managedObjectContext, sectionNameKeyPath: sectionBy?.path, cacheName: nil)
     }
 }
 

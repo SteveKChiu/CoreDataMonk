@@ -30,7 +30,7 @@ import CoreData
 //---------------------------------------------------------------------------
 
 public class CoreDataTransaction {
-    public let context: NSManagedObjectContext
+    let context: NSManagedObjectContext
     let origin: CoreDataContext
     let autoMerge: Bool
     
@@ -40,7 +40,11 @@ public class CoreDataTransaction {
         self.autoMerge = autoMerge
     }
 
-    public func handleError(error: ErrorType) {
+    public final var managedObjectContext: NSManagedObjectContext {
+        return self.context
+    }
+
+    public final func handleError(error: ErrorType) {
         self.origin.stack.handleError(error)
     }
     
@@ -50,7 +54,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(context: self.context, transaction: self, group: group)
+                    let update = CoreDataUpdate(transaction: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -62,7 +66,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlock() {
-                let update = CoreDataUpdate(context: self.context, transaction: self, group: nil)
+                let update = CoreDataUpdate(transaction: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -78,7 +82,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(context: self.context, transaction: self, group: group)
+                    let update = CoreDataUpdate(transaction: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -90,7 +94,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlockAndWait() {
-                let update = CoreDataUpdate(context: self.context, transaction: self, group: nil)
+                let update = CoreDataUpdate(transaction: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -132,12 +136,10 @@ public class CoreDataTransaction {
 //---------------------------------------------------------------------------
 
 public class CoreDataUpdate : CoreDataFetch {
-    let context: NSManagedObjectContext
     let transaction: CoreDataTransaction
     let group: dispatch_group_t?
     
-    init(context: NSManagedObjectContext, transaction: CoreDataTransaction, group: dispatch_group_t?) {
-        self.context = context
+    init(transaction: CoreDataTransaction, group: dispatch_group_t?) {
         self.transaction = transaction
         self.group = group
 
@@ -152,18 +154,18 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
-    public var managedObjectContext: NSManagedObjectContext {
-        return self.context
+    public final var managedObjectContext: NSManagedObjectContext {
+        return self.transaction.context
     }
     
-    public func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    public final func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         return try self.transaction.origin.metadataForEntityClass(type)
     }
 
     public func create<T: NSManagedObject>(type: T.Type) throws -> T {
         let meta = try self.metadataForEntityClass(type)
-        let obj = T(entity: meta.entity, insertIntoManagedObjectContext: self.context)
-        self.context.assignObject(obj, toPersistentStore: meta.store)
+        let obj = T(entity: meta.entity, insertIntoManagedObjectContext: self.managedObjectContext)
+        self.managedObjectContext.assignObject(obj, toPersistentStore: meta.store)
         return obj
     }
 
@@ -217,7 +219,7 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     public func delete<T: NSManagedObject>(obj: T) throws {
-        self.context.deleteObject(obj)
+        self.managedObjectContext.deleteObject(obj)
     }
 
     public func delete<T: NSManagedObject>(objs: [T]) throws {
@@ -235,11 +237,11 @@ public class CoreDataUpdate : CoreDataFetch {
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
         
-        try self.delete(try self.context.executeFetchRequest(request) as! [T])
+        try self.delete(try self.managedObjectContext.executeFetchRequest(request) as! [T])
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {
-        self.context.performBlock() {
+        self.managedObjectContext.performBlock() {
             do {
                 try block(self)
             } catch let error {
@@ -267,10 +269,10 @@ public class CoreDataUpdate : CoreDataFetch {
     }
     
     public func commit() throws {
-        try saveContext(self.context)
+        try saveContext(self.managedObjectContext)
     }
     
     public func rollback() {
-        self.context.reset()
+        self.managedObjectContext.reset()
     }
 }

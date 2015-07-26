@@ -46,8 +46,8 @@ public class CoreDataStack {
     public var lastError: NSError?
     public var onError: OnError?
     
-    let coordinator: NSPersistentStoreCoordinator!
-    let rootContext: NSManagedObjectContext?
+    private let coordinator: NSPersistentStoreCoordinator!
+    private let rootContext: NSManagedObjectContext?
     
     public init(modelName: String? = nil, bundle: NSBundle? = nil, rootContext: RootContextType = .Shared) throws {
         let bundle = bundle ?? NSBundle.mainBundle()
@@ -74,6 +74,14 @@ public class CoreDataStack {
         }
     }
     
+    public final var persistentStoreCoordinator: NSPersistentStoreCoordinator {
+        return self.coordinator
+    }
+    
+    public final var rootManagedObjectContext: NSManagedObjectContext? {
+        return self.rootContext
+    }
+
     public func addInMemoryStore(configuration configuration: String? = nil) throws {
         let store = try self.coordinator.addPersistentStoreWithType(
             NSInMemoryStoreType,
@@ -181,8 +189,11 @@ public class CoreDataStack {
     
     public func handleError(error: ErrorType) {
         let error = error as NSError
-        NSLog("CoreDataStack: error = %@", error)
         self.lastError = error
-        self.onError?(error)
+        if let onError = self.onError {
+            onError(error)
+        } else {
+            NSLog("CoreData: error = %@", error)
+        }
     }
 }
