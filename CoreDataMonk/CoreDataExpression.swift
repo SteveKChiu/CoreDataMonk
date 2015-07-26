@@ -81,7 +81,7 @@ public enum CoreDataQueryKey {
             return path
         }
     }
-    
+
     var modifier: NSComparisonPredicateModifier {
         switch self {
         case let .KeyModifier(_, mod):
@@ -99,7 +99,7 @@ public enum CoreDataQueryKey {
             
         case let .KeyModifier(path, _):
             return [ path ]
-            
+
         case let .KeyPath(list):
             return list
         }
@@ -108,7 +108,7 @@ public enum CoreDataQueryKey {
     public var any: CoreDataQueryKey {
         return .KeyModifier(self.path, .AllPredicateModifier)
     }
-
+    
     public var all: CoreDataQueryKey {
         return .KeyModifier(self.path, .AnyPredicateModifier)
     }

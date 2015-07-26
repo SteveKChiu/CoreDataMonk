@@ -261,7 +261,7 @@ public class CoreDataUpdate : CoreDataFetch {
             }
         } else {
             if !self.transaction.autoMerge {
-                NSNotificationCenter.defaultCenter().postNotificationName(CoreDataContext.DidCommitNotification, object: self.transaction.origin)
+                NSNotificationCenter.defaultCenter().postNotificationName(CoreDataContext.CommitNotification, object: self.transaction.origin)
             }
         }
     }

@@ -30,7 +30,7 @@ import CoreData
 //---------------------------------------------------------------------------
 
 public class CoreDataContext {
-    public static let DidCommitNotification = "CoreDataDidCommit"
+    public static let CommitNotification = "CoreDataDidCommit"
 
     public enum UpdateTargetType {
         case MainContext
@@ -106,8 +106,8 @@ public class CoreDataContext {
         return try self.stack.metadataForEntityClass(type)
     }
 
-    public func observeDidCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> Observer {
-        return Observer(notification: CoreDataContext.DidCommitNotification, object: self, queue: queue ?? NSOperationQueue.mainQueue()) {
+    public func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> Observer {
+        return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? NSOperationQueue.mainQueue()) {
             _ in
             
             block()
