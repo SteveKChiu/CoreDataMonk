@@ -322,9 +322,9 @@ Expression                               | Description
 
 You can use `|` operator to combine two or more select targets:
 
-Operator    | Example                               | Description
-------------|---------------------------------------|-------------
-`|`         | `.Average("age") | .Min("age")`       | Combine them into select targets
+Operator    | Example                                           | Description
+------------|---------------------------------------------------|-------------
+`|`         | `.Average("age") | .Min("age", alias: "min_age")` | Combine them into select targets
 
 `groupBy:` expression
 ---------------------

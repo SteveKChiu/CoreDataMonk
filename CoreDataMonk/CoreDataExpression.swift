@@ -24,7 +24,6 @@
 // DEALINGS IN THE SOFTWARE.
 //
 
-import UIKit
 import CoreData
 
 //---------------------------------------------------------------------------
@@ -338,7 +337,7 @@ public struct CoreDataOrderBy {
         return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: false))
     }
 
-    public static func OrderBy(descriptor: NSSortDescriptor) -> CoreDataOrderBy {
+    public static func Sort(descriptor: NSSortDescriptor) -> CoreDataOrderBy {
         return CoreDataOrderBy(descriptor)
     }
 }
