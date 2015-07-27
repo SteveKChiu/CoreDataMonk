@@ -245,7 +245,7 @@ Expression              | Example                   | Description
 .Where(String, Any...)  | .Where("name like %@", pattern) | The same as NSPredicate(format: "name like %@", pattern)
 .Predicate(NSPredicate) | .Predicate(my_predicate)  | The same as my_predicate
 
-You use &&, || and ! operators to combine predicate:
+You use `&&`, `||` and `!` operators to combine predicate:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
@@ -256,14 +256,14 @@ Operator    | Example                               | Description
 `orderBy:` expression
 ---------------------
 
-The `orderBy:` is supported by `.fetchAll`, '.fetchResults' and `.query` methods:
+The `orderBy:` is supported by `.fetchAll`, `.fetchResults` and `.query` methods:
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
 .Ascending(String)      | .Ascending("name")        | The same as NSSortDescriptor(key: "name", ascending: true)
 .Descending(String)     | .Descending("name")       | The same as NSSortDescriptor(key: "name", ascending: false)
 
-You can use | operator to combine two or more expressions:
+You can use `|` operator to combine two or more expressions:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
@@ -279,11 +279,11 @@ Expression                | Description
 .NoSubEntities            | fetchRequest.includesSubentities = false
 .NoPendingChanges         | fetchRequest.includesPendingChanges = false
 .NoPropertyValues         | fetchRequest.includesPropertyValues = false
-.Limit(Int)               | fetchRequest.fetchLimit = <Int>
-.Offset(Int)              | fetchRequest.fetchOffset = <Int>
-.Batch(Int)               | fetchRequest.fetchBatchSize = <Int>
-.Prefetch([String])       | fetchRequest.relationshipKeyPathsForPrefetching = <[String]>
-.PropertiesOnly([String]) | fetchRequest.propertiesToFetch = <[String]> // ignored in .query
+.Limit(Int)               | fetchRequest.fetchLimit = Int
+.Offset(Int)              | fetchRequest.fetchOffset = Int
+.Batch(Int)               | fetchRequest.fetchBatchSize = Int
+.Prefetch([String])       | fetchRequest.relationshipKeyPathsForPrefetching = [String]
+.PropertiesOnly([String]) | fetchRequest.propertiesToFetch = [String] // ignored in .query
 .Distinct                 | fetchRequest.returnsDistinctResults = true
 .Tweak(NSFetchRequest -> Void) | allow block to modify fetchRequest
 
@@ -294,8 +294,8 @@ In query, you need to specify the value you want to return:
 
 The same key expression, but only apply to by `.query` method:
 
-Expression                       | Example                   | Default alias  | Description
----------------------------------|---------------------------|----------------|-------------
+Expression             | Example          | Default alias  | Description
+-----------------------|------------------|----------------|-------------
 .Select(String...)               | .Select("name", "age")    | key name       | to get value of name, age
 .Expression(NSExpressionDescription) | .Expression(my_expression) | as my_expression.name | to get value of  my_expression
 .Average(String, alias: String?) | .Average("age")           | "average(age)" | to get average of age
@@ -306,7 +306,7 @@ Expression                       | Example                   | Default alias  | 
 .Median(String, alias: String?)  | .Median("age")            | "median(age)"  | to get median value of age
 .Count(String, alias: String?)   | .Count("age")             | "count(age)"   | to get the number of returned values
 
-You can use | operator to combine two or more select targets:
+You can use `|` operator to combine two or more select targets:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
