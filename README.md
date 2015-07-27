@@ -286,25 +286,28 @@ Expression                  | Description
 `.query` and `.queryValue` select expression
 --------------------------------------------
 
-In query, you need to specify the value you want to return:
+In `.query`, you need to specify the select targets you want to return. You can specify
+property, expression or aggregated function. The aggregated function may have optional alias,
+if user does not specify one, the default is to use property name. It is important to make sure
+each select target having unique alias, as it is used as key in returned dictionary.
 
-Expression                               | Example                     | Description
------------------------------------------|-----------------------------|-------------
-`.Select(String...)`                     | `.Select("name", "age")`    | to get value of name, age
-`.Expression(NSExpressionDescription)`   | `.Expression(my_expression)`| to get value of  `my_expression`
-`.Average(String, alias: String? = nil)` | `.Average("age")`           | to get average of age
-`.Sum(String, alias: String? = nil)`     | `.Sum("price")`             | to get sum of price
-`.StdDev(String, alias: String? = nil)`  | `.StdDev("age")`            | to get standard deviation of age
-`.Min(String, alias: String? = nil)`     | `.Min("age")`               | to get minimum value of age
-`.Max(String, alias: String? = nil)`     | `.Max("age")`               | to get maximum value of age
-`.Median(String, alias: String? = nil)`  | `.Median("age")`            | to get median value of age
-`.Count(String, alias: String? = nil)`   | `.Count("age")`             | to get the number of returned values
+Expression                               | Description
+-----------------------------------------|-------------
+`.Select(String...)`                     | to get value of properties, `.Select("name", "age")` will add two targets
+`.Expression(NSExpressionDescription)`   | to get value of  `my_expression`
+`.Average(String, alias: String? = nil)` | to get average of property
+`.Sum(String, alias: String? = nil)`     | to get sum of property
+`.StdDev(String, alias: String? = nil)`  | to get standard deviation of property
+`.Min(String, alias: String? = nil)`     | to get minimum value of property
+`.Max(String, alias: String? = nil)`     | to get maximum value of property
+`.Median(String, alias: String? = nil)`  | to get median value of property
+`.Count(String, alias: String? = nil)`   | to get the number of returned values
 
 You can use `|` operator to combine two or more select targets:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-`|`         | `.Average("age") | .Min("age")`       | Combine them into list
+`|`         | `.Average("age") | .Min("age")`       | Combine them into select targets
 
 `groupBy:` expression
 ---------------------
