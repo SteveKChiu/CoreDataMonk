@@ -221,7 +221,7 @@ public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
 Predicate expression
 --------------------
 
-CoreDataMonk provides some syntactic sugar to the predicate expression, so the code looks ore natural.
+CoreDataMonk add some syntactic sugar to the predicate expression, so the code looks more natural.
 
 First you need a way specify key name, thus not to confuse with constant value:
 
@@ -233,21 +233,21 @@ Expression              | Example                   | Description
 
 CoreDataMonk has some mappings to the predicate:
 
-Expression              | Example                   | Description
-------------------------|---------------------------|-------------
+Expression                | Example                     | Description
+--------------------------|-----------------------------|-------------
 `%String == Any`          | `%"name" == "monk"`         | The same as `NSPredicate(format: "%K == %@", "name", "monk")`
 `%String == %String`      | `%"name" == %"location"`    | The same as `NSPredicate(format: "%K == %K", "name", "location")`
-`!=`, `>`, `<`, `>=`, `<=`        |                           | Just like `==`
-`.Where(String, Any...)`  | .Where("name like %@", pattern) | The same as `NSPredicate(format: "name like %@", pattern)`
-`.Predicate(NSPredicate)` | .Predicate(my_predicate)  | The same as `my_predicate`
+`!=`, `>`, `<`, `>=`, `<=` |                            | Just like `==`
+`.Where(String, Any...)`  | `.Where("name like %@", pattern)` | The same as `NSPredicate(format: "name like %@", pattern)`
+`.Predicate(NSPredicate)` | `.Predicate(my_predicate)`  | The same as `my_predicate`
 
 You use `&&`, `||` and `!` operators to combine predicate:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-`&&`        | `%"name" == name && %"age" > age`       | The same as `NSPredicate(format: "name == %@ and age > %@", name, age)`
+`&&`        | `%"name" == name && %"age" > age`     | The same as `NSPredicate(format: "name == %@ and age > %@", name, age)`
 `||`        | `%"name" == name || %"name" == name + " sam"` | The same as `NSPredicate(format: "name == %@ or name = %@", name, name + " sam")`
-`!`         | `!(%"name" == name && %"age" > age)`    | The same as `NSPredicate(format: "not (name == %@ and age > %@)", name, age)`
+`!`         | `!(%"name" == name && %"age" > age)`  | The same as `NSPredicate(format: "not (name == %@ and age > %@)", name, age)`
 
 `orderBy:` expression
 ---------------------
@@ -256,8 +256,8 @@ The `orderBy:` is supported by `.fetchAll`, `.fetchResults` and `.query` methods
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
-`.Ascending(String)`      | `.Ascending("name")`        | The same as `NSSortDescriptor(key: "name", ascending: true)`
-`.Descending(String)`     | `.Descending("name")`       | The same as `NSSortDescriptor(key: "name", ascending: false)`
+`.Ascending(String)`    | `.Ascending("name")`      | The same as `NSSortDescriptor(key: "name", ascending: true)`
+`.Descending(String)`   | `.Descending("name")`     | The same as `NSSortDescriptor(key: "name", ascending: false)`
 
 You can use `|` operator to combine two or more expressions:
 
@@ -279,7 +279,7 @@ Expression                  | Description
 `.Offset(Int)`              | `fetchRequest.fetchOffset = Int`
 `.Batch(Int)`               | `fetchRequest.fetchBatchSize = Int`
 `.Prefetch([String])`       | `fetchRequest.relationshipKeyPathsForPrefetching = [String]`
-`.PropertiesOnly([String])` | `fetchRequest.propertiesToFetch` = [String] // ignored in .query
+`.PropertiesOnly([String])` | `fetchRequest.propertiesToFetch = [String]` // ignored in .query
 `.Distinct`                 | `fetchRequest.returnsDistinctResults = true`
 `.Tweak(NSFetchRequest -> Void)` | allow block to modify fetchRequest
 
@@ -304,7 +304,7 @@ You can use `|` operator to combine two or more select targets:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-`|`         | `.Average("age") | .Min("age")`       | Combine them into select targets
+`|`         | `.Average("age") | .Min("age")`       | Combine them into list
 
 `groupBy:` expression
 ---------------------
@@ -319,7 +319,7 @@ You can use `|` operator to combine two or more keys:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-`|`         | `%"name" | %"location"`               | The same as ["name", "location"]
+`|`         | `%"name" | %"location"`               | The same as `["name", "location"]`
 
 `having:` expression
 --------------------
