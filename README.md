@@ -11,10 +11,27 @@ The main features of CoreDataMonk are:
 + Serialized update to avoid data consistency problem (optional)
 + Use exception for error handling
 
+CoreDataMonk class
+------------------
+
+CoreDataMonk provides some class that you may need to know, here is the relationship with CoreData class:
+
+CoreDataMonk class    | CoreData classes
+----------------------|-----------------
+`CoreDataStack`       | `NSPersistentStoreCoordinator`, `NSManagedObjectContext` (PrivateQueueConcurrencyType, root saving context, optional)
+`CoreDataMainContext` | `NSManagedObjectContext` (MainQueueConcurrencyType, main context), it is sub class of `CoreDataContext`
+`CoreDataContext`     | none, but it act as factory to create `CoreDataTransaction`
+`CoreDataTransaction` | `NSManagedObjectContext` (PrivateQueueConcurrencyType, update context)
+`CoreDataUpdate`      | interface to `CoreDataTransaction`
+
+You only need to explicitly create `CoreDataStack` and `CoreDataMainContext` as in the getting started section, other classes are created via methods and can not be created by user.
+
+You may need to create `CoreDataContext` if you are using custom setup, please see more info in the advance setup section.
+
 Getting started
 ---------------
 
-Setup CoreDataMonk is easy, and the default provides three-tier NSManagedObjectContext setup,
+Setup CoreDataMonk is easy, and the default provides three-tier `NSManagedObjectContext` setup,
 that is good for most applications. You can do this with:
 
 ````swift
@@ -329,4 +346,257 @@ Operator    | Example                               | Description
 
 The same as predicate expression, but only apply to `.query` method with `groupBy:`.
 
+Data source for UITableView and UICollectionView
+------------------------------------------------
 
+Most applications will use `NSFetchedResultsController` together with `UITableView` or `UICollectionView`.
+CoreDataMonk have two classes to make this easier, it is `TableViewDataProvider` and `CollectionViewDataProvider`.
+
+Take `TableViewDataProvider` for example:
+
+````swift
+class MyViewController : UIViewController, UITableViewDelegate {
+    @IBOutlet weak var tableView: UITableView!
+    var dataProvider: TableViewDataProvider<Person>!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        do {
+            self.dataProvider = TableViewDataProvider(context: World).bind(self.tableView) {
+                person, indexPath in
+
+                let cell = self.tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath) as! MyTableCell
+                cell.title.text = person.title
+                ...
+                return cell
+            }
+
+            try self.dataProvider.query(orderBy: .Ascending("title"))
+        } catch let error {
+            fatalError("fail to query main context: \(error)")
+        }
+    }
+}
+````
+
+Advanced setup: default three-tier setup
+----------------------------------------
+
+By default CoreDataMonk provides three tier setup of `NSManagedObjectContext`, it looks like the following.
+Note the `CoreDataTransaction` is temporary, it is created and then released after completed.
+
+````
+TRANSACTION                                 <-- MAIN.beginUpdate
+[CoreDataTransaction]
+(NSManagedObjectContext/PrivateQueue)
+        |
+        |
+MAIN (Global)                               --> MAIN.fetch
+[CoreDataMainContext]
+(NSManagedObjectContext/MainQueue)
+        |
+        V
+ROOT (OPTIONAL)
+[CoreDataStack]
+(NSManagedObjectContext/PrivateQueue)
+        |
+        |
+STORE   V
+[CoreDataStack]
+(NSPersistentStoreCoordinator)
+````
+
+If you look at `.init` of `CoreDataStack`, you will find you can skip root context:
+
+````swift
+public enum RootContextType {
+    case None
+    case Shared
+}
+
+public init(modelName: String? = nil,
+        bundle: NSBundle? = nil,
+        rootContext: RootContextType = .Shared) throws
+````
+
+Advanced setup: Two-tier with auto merge
+----------------------------------------
+
+This is not the only way to setup CoreData, here is yet another popular setup. The TRANSACTION context
+set its parent to ROOT, and MAIN get merged data from notification. The advantage is MAIN does not
+have to handle all the merge work, it only need to merge registered objects, it may be faster in some cases.
+The disadvantage is it may not get all the data, especially if you need some properties from relationship,
+you may not get notification at all.
+
+````
+TRANSACTION                                 <-- MAIN.beginUpdate
+[CoreDataTransaction]
+(NSManagedObjectContext/PrivateQueue)
+        |
+        |           MAIN (Global)           --> MAIN.fetch
+        |           [CoreDataMainContext]
+        |           (NSManagedObjectContext/MainQueue)
+        |              |         ^
+        V              |         |
+ROOT (OPTIONAL)        |         | MERGE via notification
+[CoreDataStack]        V         |
+(NSManagedObjectContext/PrivateQueue)
+        |
+        |
+STORE   V
+[CoreDataStack]
+(NSPersistentStoreCoordinator)
+````
+
+You can easily setup this via CoreDataMonk, let's take a look at `.init` of `CoreDataMainContext`:
+
+````swift
+public enum TransactionTarget {
+    case MainContext
+    case RootContext(autoMerge: Bool)
+    case PersistentStore
+}
+
+public enum TransactionOrder {
+    case Serial
+    case Concurrent
+}
+
+public init(stack: CoreDataStack,
+        transactionTarget: TransactionTarget = .MainContext,
+        transactionOrder: TransactionOrder = .Concurrent) throws
+````
+
+The `transactionTarget` specify what is the parent context of `CoreDataTransaction`, the default is `.MainContext`.
+Now we only need to change it `.RootContext(autoMerge: true)` to have it connect to ROOT with auto merge, then we are done.
+
+````swift
+func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+    do {
+        let dataStack = try CoreDataStack()
+        try dataStack.addDatabaseStore(resetOnFailure: true)
+        World = try CoreDataMainContext(stack: dataStack, transactionTarget: .RootContext(autoMerge: true))
+
+        ...
+    } catch let error {
+        fatalError("fail to init core data: \(error)")
+    }
+    ...
+}
+````
+
+Note, you have to have ROOT context in order to make auto merge works, if you skip ROOT while create `CoreDataStack`,
+then you have to merge to reload the context by yourself.
+
+Advanced setup: Every ViewController has its own CoreDataMainContext
+--------------------------------------------------------------------
+
+This is yet another interesting setup, that you don't have merge at all, you simply reset the MAIN context after receive
+commit notification.
+
+````
+TRANSACTION                                 <-- (UPDATER or MAIN).beginUpdate
+[CoreDataTransaction]
+(NSManagedObjectContext/PrivateQueue)
+        |                                          UPDATER
+        |                                          [CoreDataContext]
+        |                                          (no NSManagedObjectContext)
+        |
+        |
+        |       MAIN (ViewController1)             MAIN (ViewController2)
+        |      [CoreDataMainContext]               [CoreDataMainContext]
+        |      (NSManagedObjectContext/MainQueue)  (NSManagedObjectContext/MainQueue)
+        |                |                             |
+        |                |                             |
+STORE   V                |                             |
+[CoreDataStack]          V                             V
+(NSPersistentStoreCoordinator)
+````
+
+There is no global `CoreDataMainContext`, and you create `CoreDataMainContext` in the `.viewDidLoad` method of `UIViewController`.
+
+Also you may need to create global UPDATER (one or many, or just use MAIN), all the update is via UPDATER, `UIViewController` need register notification observer by `CoreDataContext.observeCommit`:
+
+It is likely you don't want ROOT in this setup, just pass `.PersistentStore`, or `.RootContext(autoMerge: false)` if ROOT is still needed.
+
+````swift
+var DataStack: CoreDataStack!
+var Updater: CoreDataContext!
+
+class AppDelegate {
+    func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+        do {
+            DataStack = try CoreDataStack()
+            try DataStack.addDatabaseStore(resetOnFailure: true)
+            Updater = try CoreDataContext(stack: DataStack, transactionTarget: .PersistentStore)
+            ...
+        } catch let error {
+            fatalError("fail to init core data: \(error)")
+        }
+        ...
+    }
+    ...
+}
+
+class ViewController : UIViewController {
+    var context: CoreDataMainContext!
+
+    // it is important to keep this reference, it will removeObserver after it is de-inited
+    var observer: AnyObject!
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        do {
+            self.context = try CoreDataMainContext(stack: DataStack, transactionTarget: .PersistentStore)
+            self.observer = Updater.observeCommit() {
+                self.context.reset()
+                ...
+                // reload data here
+            }
+            ...
+        } catch let error {
+            fatalError("fail to init main context: \(error)")
+        }
+    }
+}
+
+class BackgroundWorker {
+    func process() {
+        Updater.beginUpdate() {
+            update in
+
+            ...
+        }
+    }
+}
+````
+
+Advanced setup: Force transaction in serial order
+-------------------------------------------------
+
+By default CoreDataMonk will allow different threads to create different transactions at the same time.
+This is good for performance, but as you might think, there are chances different threads work on
+the same entity, and you may have data race problem.
+
+The problem may not be as serious as you think, that is why we allow concurrent transactions by default.
+The key is how different threads process entities. In most cases, most applications use different threads
+to process different entities, thus you don't have data race problem.
+
+But if you do, you can pass `.Serial` while creating CoreDataMainContext:
+
+````swift
+func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
+    do {
+        let dataStack = try CoreDataStack()
+        try dataStack.addDatabaseStore(resetOnFailure: true)
+        World = try CoreDataMainContext(stack: dataStack, transactionOrder: .Serial)
+
+        ...
+    } catch let error {
+        fatalError("fail to init core data: \(error)")
+    }
+    ...
+}
+````
