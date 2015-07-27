@@ -42,7 +42,7 @@ public class CoreDataContext {
         case Default
     }
     
-    public class Observer {
+    private class Observer {
         var observer: NSObjectProtocol
         
         init(notification: String, object: AnyObject?, queue: NSOperationQueue?, block: (NSNotification) -> Void) {
@@ -58,7 +58,7 @@ public class CoreDataContext {
     let stack: CoreDataStack
     let updateTarget: UpdateTarget
     let updateQueue: dispatch_queue_t?
-    var autoMergeObserver: Observer?
+    var autoMergeObserver: AnyObject?
 
     public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, updateTarget: UpdateTarget = .RootContext(autoMerge: false), updateOrder: UpdateOrder = .Default) throws {
         if updateOrder == .Serial {
@@ -105,7 +105,7 @@ public class CoreDataContext {
         return try self.stack.metadataForEntityClass(type)
     }
 
-    public class func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> Observer {
+    public class func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> AnyObject {
         return Observer(notification: CoreDataContext.CommitNotification, object: nil, queue: queue ?? NSOperationQueue.mainQueue()) {
             _ in
             
@@ -113,7 +113,7 @@ public class CoreDataContext {
         }
     }
 
-    public func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> Observer {
+    public func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> AnyObject {
         return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? NSOperationQueue.mainQueue()) {
             _ in
             
