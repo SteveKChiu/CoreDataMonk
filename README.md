@@ -527,7 +527,7 @@ var Updater: CoreDataContext!
 class AppDelegate {
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
         do {
-            DataStack = try CoreDataStack()
+            DataStack = try CoreDataStack(rootContext: .None)
             try DataStack.addDatabaseStore(resetOnFailure: true)
             Updater = try CoreDataContext(stack: DataStack, updateTarget: .PersistentStore)
             ...
@@ -577,10 +577,10 @@ Advanced setup: Force update in serial order
 --------------------------------------------
 
 By default CoreDataMonk will allow different threads to call `.beginUpdate` at the same time.
-This is good for performance, but as you might think, there are chances different threads work on
-the same entity, and you may have data race problem.
+This is good for performance, but as you might think, if there are different threads working on
+the same entity, it might have data race problem.
 
-The problem may not be as serious as you think, that is why we allow concurrent update by default.
+The problem may not be as serious as you think, that is why we allow it by default.
 The key is how different threads process entities. In most cases, most applications use different threads
 to process different entities, thus you don't have data race problem.
 
@@ -604,10 +604,10 @@ func application(application: UIApplication, didFinishLaunchingWithOptions launc
 To be clear, each `.perform()` in the same transaction is always in serial, it is different transactions may have its `.perform()`
 running at the same time.
 
-What `updateOrder: .Serial` does is to ensure only one `.perform()` can be running at a time. But it might still have data
+What `updateOrder: .Serial` does is to ensure only one `.perform()` can be running at a time globally. But it might still have data
 consistency problem if you are using long running transaction, as there will be `.perform()` from other transaction in between
-your call to `.perform()` of long running transaction.
+your call to `.perform()` of the long running transaction.
 
-The rule is actually very simple, just don't call `.beginTransaction()` if you are using `updateOrder: .Serial`,
+The rule to avoid that is actually very simple, just don't call `.beginTransaction()` if you are using `updateOrder: .Serial`,
 use `.beginUpdate()` exclusively.
 
