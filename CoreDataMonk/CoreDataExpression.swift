@@ -247,16 +247,16 @@ public struct CoreDataSelect {
         return CoreDataSelect(function: "count:", property: property, alias: alias, type: .Integer64AttributeType)
     }
 
-    public static func Max(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
-        return CoreDataSelect(function: "max:", property: property, alias: alias, type: type)
+    public static func Max(property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "max:", property: property, alias: alias, type: .UndefinedAttributeType)
     }
 
-    public static func Min(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
-        return CoreDataSelect(function: "min:", property: property, alias: alias, type: type)
+    public static func Min(property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "min:", property: property, alias: alias, type: .UndefinedAttributeType)
     }
 
-    public static func Median(property: String, alias: String? = nil, type: NSAttributeType = .UndefinedAttributeType) -> CoreDataSelect {
-        return CoreDataSelect(function: "median:", property: property, alias: alias, type: type)
+    public static func Median(property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "median:", property: property, alias: alias, type: .UndefinedAttributeType)
     }
     
     private func keyPathResultType(key: String, entity: NSEntityDescription) throws -> NSAttributeType {
@@ -396,7 +396,9 @@ public enum CoreDataQueryOptions {
             request.relationshipKeyPathsForPrefetching = keys
          
         case let .PropertiesOnly(keys):
-            request.propertiesToFetch = keys
+            if request.resultType == .ManagedObjectResultType {
+                request.propertiesToFetch = keys
+            }
             
         case .Distinct:
             request.returnsDistinctResults = true

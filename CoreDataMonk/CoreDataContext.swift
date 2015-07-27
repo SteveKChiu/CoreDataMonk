@@ -72,7 +72,7 @@ public class CoreDataContext {
         self.mainContext = mainContext
         self.updateTarget = updateTarget
 
-        switch updateTarget{
+        switch updateTarget {
         case .MainContext:
             guard mainContext != nil else {
                 throw CoreDataError("CoreDataContext.UpdateTarget(.MainContext) need MainContext but it is not specified")

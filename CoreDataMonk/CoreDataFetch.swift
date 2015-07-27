@@ -151,8 +151,10 @@ public extension CoreDataFetch {
         request.propertiesToFetch = try select.resolve(meta.entity)
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy?.descriptors
-        request.propertiesToGroupBy = groupBy?.list
-        request.havingPredicate = having?.predicate
+        if let groupBy = groupBy {
+            request.propertiesToGroupBy = groupBy.list
+            request.havingPredicate = having?.predicate
+        }
         try options?.apply(request)
         
         return try self.managedObjectContext.executeFetchRequest(request) as! [[String: AnyObject]]
