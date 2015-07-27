@@ -6,13 +6,9 @@ The main features of CoreDataMonk are:
 
 + Allow you to setup CoreData in different ways easily
 (three tier, two-tier with auto merge, multiple main context with manual reload, etc...)
-
 + API that is easy to use and understand
-
 + Swift friendly query expression
-
 + Serialized update to avoid data consistency problem (optional)
-
 + Use exception for error handling
 
 Getting started
@@ -113,7 +109,7 @@ for info in info_list {
 Create and update object
 ------------------------
 
-To create or update object, you have to call .beginUpdate(), and you need to call commit() before the block ends,
+To create or update object, you have to call `.beginUpdate()`, and you need to call `.commit()` before the block ends,
 otherwise all changes will be discarded.
 
 
@@ -186,7 +182,7 @@ World.beginUpdate() {
 }
 ````
 
-If the update takes multiple steps and can not be done in one block, you can use .beginTransaction():
+If the update takes multiple steps and can not be done in one block, you can use `.beginTransaction()`:
 
 ````swift
 let transaction = World.beginTransaction()
@@ -215,7 +211,7 @@ transaction.perform() {
 }
 ````
 
-In fact, .beginUpdate() is just a temporary transaction with perform:
+In fact, `.beginUpdate()` is just a temporary transaction with perform:
 ````swift
 public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
     beginTransaction().perform(block)
@@ -231,27 +227,27 @@ First you need a way specify key name, thus not to confuse with constant value:
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
-%String                 | %"name"                   | key "name"
-%String%.any            | %"friend.age"%.any        | key "friend.age" with ANY modifier
-%String%.all            | %"friend.age"%.all        | key "friend.age" with ALL modifier
+`%String`               | `%"name"`                 | key "name"
+`%String%.any`          | `%"friend.age"%.any`      | key "friend.age" with ANY modifier
+`%String%.all`          | `%"friend.age"%.all`      | key "friend.age" with ALL modifier
 
 CoreDataMonk has some mappings to the predicate:
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
-%String == Any          | %"name" == "monk"         | The same as NSPredicate(format: "%K == %@", "name", "monk")
-%String == %String      | %"name" == %"location"    | The same as NSPredicate(format: "%K == %K", "name", "location")
-!=, >, <, >=, <=        |                           | Just like ==
-.Where(String, Any...)  | .Where("name like %@", pattern) | The same as NSPredicate(format: "name like %@", pattern)
-.Predicate(NSPredicate) | .Predicate(my_predicate)  | The same as my_predicate
+`%String == Any`          | `%"name" == "monk"`         | The same as `NSPredicate(format: "%K == %@", "name", "monk")`
+`%String == %String`      | `%"name" == %"location"`    | The same as `NSPredicate(format: "%K == %K", "name", "location")`
+`!=`, `>`, `<`, `>=`, `<=`        |                           | Just like `==`
+`.Where(String, Any...)`  | .Where("name like %@", pattern) | The same as `NSPredicate(format: "name like %@", pattern)`
+`.Predicate(NSPredicate)` | .Predicate(my_predicate)  | The same as `my_predicate`
 
 You use `&&`, `||` and `!` operators to combine predicate:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-&&          | %"name" == name && %"age" > age       | The same as NSPredicate(format: "name == %@ and age > %@", name, age)
-&#124;&#124;| %"name" == name &#124;&#124; %"name" == name + " sam" | The same as NSPredicate(format: "name == %@ or name = %@", name, name + " sam")
-!           | !(%"name" == name && %"age" > age)    | The same as NSPredicate(format: "not (name == %@ and age > %@)", name, age)
+`&&`        | `%"name" == name && %"age" > age`       | The same as `NSPredicate(format: "name == %@ and age > %@", name, age)`
+`||`        | `%"name" == name || %"name" == name + " sam"` | The same as `NSPredicate(format: "name == %@ or name = %@", name, name + " sam")`
+`!`         | `!(%"name" == name && %"age" > age)`    | The same as `NSPredicate(format: "not (name == %@ and age > %@)", name, age)`
 
 `orderBy:` expression
 ---------------------
@@ -260,55 +256,55 @@ The `orderBy:` is supported by `.fetchAll`, `.fetchResults` and `.query` methods
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
-.Ascending(String)      | .Ascending("name")        | The same as NSSortDescriptor(key: "name", ascending: true)
-.Descending(String)     | .Descending("name")       | The same as NSSortDescriptor(key: "name", ascending: false)
+`.Ascending(String)`      | `.Ascending("name")`        | The same as `NSSortDescriptor(key: "name", ascending: true)`
+`.Descending(String)`     | `.Descending("name")`       | The same as `NSSortDescriptor(key: "name", ascending: false)`
 
 You can use `|` operator to combine two or more expressions:
 
-Operator    | Example                               | Description
-------------|---------------------------------------|-------------
-&#124;      | .Ascending("name") &#124; .Descending("location") | The same as [NSSortDescriptor(key: "name", ascending: true), NSSortDescriptor(key: "location", ascending: false)]
+Operator    | Example                                        | Description
+------------|------------------------------------------------|-------------
+`|`         | `.Ascending("name") | .Descending("location")` | The same as `[NSSortDescriptor(key: "name", ascending: true), NSSortDescriptor(key: "location", ascending: false)]`
 
 `options:` expression
 ---------------------
 
-You can set options to adjust NSFetchRequest, it is supported by all `.fetch` and `.query` methods:
+You can set options to adjust `NSFetchRequest`, it is supported by all `.fetch` and `.query` methods:
 
-Expression                | Description
---------------------------|------------
-.NoSubEntities            | fetchRequest.includesSubentities = false
-.NoPendingChanges         | fetchRequest.includesPendingChanges = false
-.NoPropertyValues         | fetchRequest.includesPropertyValues = false
-.Limit(Int)               | fetchRequest.fetchLimit = Int
-.Offset(Int)              | fetchRequest.fetchOffset = Int
-.Batch(Int)               | fetchRequest.fetchBatchSize = Int
-.Prefetch([String])       | fetchRequest.relationshipKeyPathsForPrefetching = [String]
-.PropertiesOnly([String]) | fetchRequest.propertiesToFetch = [String] // ignored in .query
-.Distinct                 | fetchRequest.returnsDistinctResults = true
-.Tweak(NSFetchRequest -> Void) | allow block to modify fetchRequest
+Expression                  | Description
+----------------------------|------------
+`.NoSubEntities`            | `fetchRequest.includesSubentities = false`
+`.NoPendingChanges`         | `fetchRequest.includesPendingChanges = false`
+`.NoPropertyValues`         | `fetchRequest.includesPropertyValues = false`
+`.Limit(Int)`               | `fetchRequest.fetchLimit = Int`
+`.Offset(Int)`              | `fetchRequest.fetchOffset = Int`
+`.Batch(Int)`               | `fetchRequest.fetchBatchSize = Int`
+`.Prefetch([String])`       | `fetchRequest.relationshipKeyPathsForPrefetching = [String]`
+`.PropertiesOnly([String])` | `fetchRequest.propertiesToFetch` = [String] // ignored in .query
+`.Distinct`                 | `fetchRequest.returnsDistinctResults = true`
+`.Tweak(NSFetchRequest -> Void)` | allow block to modify fetchRequest
 
 `.query` and `.queryValue` select expression
 --------------------------------------------
 
 In query, you need to specify the value you want to return:
 
-Expression                       | Example                   | Description
----------------------------------|---------------------------|-------------
-.Select(String...)               | .Select("name", "age")    | to get value of name, age
-.Expression(NSExpressionDescription) | .Expression(my_expression) | to get value of  my_expression
-.Average(String, alias: String?) | .Average("age")           | to get average of age
-.Sum(String, alias: String?)     | .Sum("price")             | to get sum of price
-.StdDev(String, alias: String?)  | .StdDev("age")            | to get standard deviation of age
-.Min(String, alias: String?)     | .Min("age")               | to get minimum value of age
-.Max(String, alias: String?)     | .Max("age")               | to get maximum value of age
-.Median(String, alias: String?)  | .Median("age")            | to get median value of age
-.Count(String, alias: String?)   | .Count("age")             | to get the number of returned values
+Expression                               | Example                     | Description
+-----------------------------------------|-----------------------------|-------------
+`.Select(String...)`                     | `.Select("name", "age")`    | to get value of name, age
+`.Expression(NSExpressionDescription)`   | `.Expression(my_expression)`| to get value of  `my_expression`
+`.Average(String, alias: String? = nil)` | `.Average("age")`           | to get average of age
+`.Sum(String, alias: String? = nil)`     | `.Sum("price")`             | to get sum of price
+`.StdDev(String, alias: String? = nil)`  | `.StdDev("age")`            | to get standard deviation of age
+`.Min(String, alias: String? = nil)`     | `.Min("age")`               | to get minimum value of age
+`.Max(String, alias: String? = nil)`     | `.Max("age")`               | to get maximum value of age
+`.Median(String, alias: String? = nil)`  | `.Median("age")`            | to get median value of age
+`.Count(String, alias: String? = nil)`   | `.Count("age")`             | to get the number of returned values
 
 You can use `|` operator to combine two or more select targets:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-&#124;      | .Average("age") &#124; .Min("age")    | Combine them into select targets
+`|`         | `.Average("age") | .Min("age")`       | Combine them into select targets
 
 `groupBy:` expression
 ---------------------
@@ -317,13 +313,13 @@ The same key expression, but only apply to by `.query` method:
 
 Expression              | Example                   | Description
 ------------------------|---------------------------|-------------
-%String                 | %"name"                   | "name" as object property name
+`%String`               | `%"name"`                 | "name" as object property name
 
-You can use | operator to combine two or more keys:
+You can use `|` operator to combine two or more keys:
 
 Operator    | Example                               | Description
 ------------|---------------------------------------|-------------
-&#124;      | %"name" &#124; %"location"            | The same as ["name", "location"]
+`|`         | `%"name" | %"location"`               | The same as ["name", "location"]
 
 `having:` expression
 --------------------
