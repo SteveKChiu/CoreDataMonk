@@ -64,50 +64,50 @@ Fetch object
 OK now you can fetch data from main context in the view controller:
 
 ````swift
-    // you can add % prefix to tell CoreDataMonk it is for key name
-    let monk = try World.fetch(Person.self, %"name" == "Monk")
+// you can add % prefix to tell CoreDataMonk it is for key name
+let monk = try World.fetch(Person.self, %"name" == "Monk")
 
-    let warrior = try World.fetch(Person.self, %"name" == "Warrior" && %"location" == "Taipei")
+let warrior = try World.fetch(Person.self, %"name" == "Warrior" && %"location" == "Taipei")
 
 ````
 
 To fetch a list of objects:
 
 ````swift
-    let monks = try World.fetchAll(Person.self)
+let monks = try World.fetchAll(Person.self)
 ````
 
 To give more conditions:
 
 ````swift
-    let monks = try World.fetchAll(Person.self,
-        %"age" >= 18 || %"location" == "Taipei",
-        orderBy: .Ascending("name") | .Descending("age"),
-        options: .Limit(100) | .Offset(20)
-    )
+let monks = try World.fetchAll(Person.self,
+    %"age" >= 18 || %"location" == "Taipei",
+    orderBy: .Ascending("name") | .Descending("age"),
+    options: .Limit(100) | .Offset(20)
+)
 ````
 
 And you can query value too:
 
 ````swift
-    let age = try World.queryValue(Person.self, .Average("age")) as! NSNumber
+let age = try World.queryValue(Person.self, .Average("age")) as! NSNumber
 ````
 
 And of course more values:
 
 ````swift
-    let info_list = try World.query(Person.self,
-        .Select("location") | .Average("age"),
-        %"name" == "Monk",
-        orderBy: .Descending("age"),
-        groupBy: %"location"
-    )
+let info_list = try World.query(Person.self,
+    .Select("location") | .Average("age"),
+    %"name" == "Monk",
+    orderBy: .Descending("age"),
+    groupBy: %"location"
+)
 
-    for info in info_list {
-        let location = info["location"] as! String
-        let age = info["average(key)"] as! NSNumber
-        ...
-    }
+for info in info_list {
+    let location = info["location"] as! String
+    let age = info["age"] as! NSNumber
+    ...
+}
 ````
 
 Create and update object
@@ -118,108 +118,108 @@ otherwise all changes will be discarded.
 
 
 ````swift
-    World.beginUpdate() {
-        update in
+World.beginUpdate() {
+    update in
 
-        let farmer = try update.create(Person.self)
-        farmer.name = "Framer"
-        farmer.age = 28
+    let farmer = try update.create(Person.self)
+    farmer.name = "Framer"
+    farmer.age = 28
 
-        let knight = try update.fetchOrCreate(Person.self, %"name" == "Knight" && %"age" == 18)
-        knight.friend = farmer
+    let knight = try update.fetchOrCreate(Person.self, %"name" == "Knight" && %"age" == 18)
+    knight.friend = farmer
 
-        let monk = try update.fetch(Person.self, %"name" == "Monk")
-        monk.age = 44
-        monk.friend = knight
+    let monk = try update.fetch(Person.self, %"name" == "Monk")
+    monk.age = 44
+    monk.friend = knight
 
-        try update.commit()
-    }
+    try update.commit()
+}
 
-    // or you prefer to wait for the update to complete
-    World.beginUpdateAndWait() {
-        update in
+// or you prefer to wait for the update to complete
+World.beginUpdateAndWait() {
+    update in
 
-        ...
-    }
+    ...
+}
 ````
 
 If you already fetch object in the main context, you can use that in the update:
 
 ````swift
-    let warrior = try World.fetch(Person.self, %"name" == "Warrior" && %"location" == "Taipei")
+let warrior = try World.fetch(Person.self, %"name" == "Warrior" && %"location" == "Taipei")
 
-    World.beginUpdate() {
-        update in
+World.beginUpdate() {
+    update in
 
-        let warrior = try update.use(warrior)
+    let warrior = try update.use(warrior)
 
-        let monk = try update.fetch(Person.self, %"name" == "Monk")
-        monk.friend = warrior
+    let monk = try update.fetch(Person.self, %"name" == "Monk")
+    monk.friend = warrior
 
-        try update.commit()
-    }
+    try update.commit()
+}
 ````
 
 Update can be used in nested block. The changes are discarded only after it is de-inited.
 For example, if you need to fetch data from server to update data:
 
 ````swift
-    World.beginUpdate() {
-        update in
+World.beginUpdate() {
+    update in
 
-        let monk = try update.fetch(Person.self, %"name" == "Monk")
+    let monk = try update.fetch(Person.self, %"name" == "Monk")
 
-        // this will start network connection and return result in callback block
-        remote_server.findAge(monk.name, location: monk.location) {
-            age in
+    // this will start network connection and return result in callback block
+    remote_server.findAge(monk.name, location: monk.location) {
+        age in
 
-            // you need to call .perform() in nested block
-            update.perform() {
-                update in
+        // you need to call .perform() in nested block
+        update.perform() {
+            update in
 
-                // it is safe to use the object directly in the same update
-                monk.age = age
+            // it is safe to use the object directly in the same update
+            monk.age = age
 
-                try update.commit()
-            }
+            try update.commit()
         }
     }
+}
 ````
 
 If the update takes multiple steps and can not be done in one block, you can use .beginTransaction():
 
 ````swift
-    let transaction = World.beginTransaction()
+let transaction = World.beginTransaction()
 
-    transaction.perform() {
-        update in
-
-        ...
-    }
+transaction.perform() {
+    update in
 
     ...
+}
 
-    transaction.perform() {
-        update in
+...
 
-        ...
-    }
+transaction.perform() {
+    update in
 
     ...
+}
 
-    transaction.perform() {
-        update in
+...
 
-        ...
-        try update.commit()
-    }
+transaction.perform() {
+    update in
+
+    ...
+    try update.commit()
+}
 ````
 
 In fact, .beginUpdate() is just a temporary transaction with perform:
 ````swift
-    public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
-        beginTransaction().perform(block)
-    }
+public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
+    beginTransaction().perform(block)
+}
 ````
 
 Predicate expression
@@ -292,19 +292,17 @@ Expression                | Description
 
 In query, you need to specify the value you want to return:
 
-The same key expression, but only apply to by `.query` method:
-
-Expression             | Example          | Default alias  | Description
------------------------|------------------|----------------|-------------
-.Select(String...)               | .Select("name", "age")    | key name       | to get value of name, age
-.Expression(NSExpressionDescription) | .Expression(my_expression) | as my_expression.name | to get value of  my_expression
-.Average(String, alias: String?) | .Average("age")           | "average(age)" | to get average of age
-.Sum(String, alias: String?)     | .Sum("price")             | "sum(price)"   | to get sum of price
-.StdDev(String, alias: String?)  | .StdDev("age")            | "stddev(age)"  | to get standard deviation of age
-.Min(String, alias: String?)     | .Min("age")               | "min(age)"     | to get minimum value of age
-.Max(String, alias: String?)     | .Max("age")               | "max(age)"     | to get maximum value of age
-.Median(String, alias: String?)  | .Median("age")            | "median(age)"  | to get median value of age
-.Count(String, alias: String?)   | .Count("age")             | "count(age)"   | to get the number of returned values
+Expression                       | Example                   | Description
+---------------------------------|---------------------------|-------------
+.Select(String...)               | .Select("name", "age")    | to get value of name, age
+.Expression(NSExpressionDescription) | .Expression(my_expression) | to get value of  my_expression
+.Average(String, alias: String?) | .Average("age")           | to get average of age
+.Sum(String, alias: String?)     | .Sum("price")             | to get sum of price
+.StdDev(String, alias: String?)  | .StdDev("age")            | to get standard deviation of age
+.Min(String, alias: String?)     | .Min("age")               | to get minimum value of age
+.Max(String, alias: String?)     | .Max("age")               | to get maximum value of age
+.Median(String, alias: String?)  | .Median("age")            | to get median value of age
+.Count(String, alias: String?)   | .Count("age")             | to get the number of returned values
 
 You can use `|` operator to combine two or more select targets:
 

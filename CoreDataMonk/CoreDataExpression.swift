@@ -217,7 +217,7 @@ public struct CoreDataSelect {
         let key = NSExpression(forKeyPath: property)
         let expression = NSExpression(forFunction: function, arguments: [ key ])
         let description = NSExpressionDescription()
-        description.name = alias ?? "\(function)(\(property))"
+        description.name = alias ?? property
         description.expression = expression
         description.expressionResultType = type
         self.descriptions = [ description ]
