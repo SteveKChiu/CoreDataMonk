@@ -31,15 +31,15 @@ import CoreData
 public class CoreDataContext {
     public static let CommitNotification = "CoreDataDidCommit"
 
-    public enum TransactionTarget {
+    public enum UpdateTarget {
         case MainContext
         case RootContext(autoMerge: Bool)
         case PersistentStore
     }
 
-    public enum TransactionOrder {
+    public enum UpdateOrder {
         case Serial
-        case Concurrent
+        case Default
     }
     
     public class Observer {
@@ -56,22 +56,22 @@ public class CoreDataContext {
 
     let mainContext: NSManagedObjectContext?
     let stack: CoreDataStack
-    let transactionTarget: TransactionTarget
-    let transactionQueue: dispatch_queue_t?
+    let updateTarget: UpdateTarget
+    let updateQueue: dispatch_queue_t?
     var autoMergeObserver: Observer?
 
-    public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, transactionTarget: TransactionTarget = .RootContext(autoMerge: false), transactionOrder: TransactionOrder = .Concurrent) throws {
-        if transactionOrder == .Serial {
-            self.transactionQueue = dispatch_queue_create("CoreDataContext.TransactionQueue", DISPATCH_QUEUE_SERIAL)
+    public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, updateTarget: UpdateTarget = .RootContext(autoMerge: false), updateOrder: UpdateOrder = .Default) throws {
+        if updateOrder == .Serial {
+            self.updateQueue = dispatch_queue_create("CoreDataContext.UpdateQueue", DISPATCH_QUEUE_SERIAL)
         } else {
-            self.transactionQueue = nil
+            self.updateQueue = nil
         }
         
         self.stack = stack
         self.mainContext = mainContext
-        self.transactionTarget = transactionTarget
+        self.updateTarget = updateTarget
 
-        switch transactionTarget {
+        switch updateTarget {
         case .MainContext:
             guard mainContext != nil else {
                 throw CoreDataError("CoreDataContext.UpdateTarget(.MainContext) need MainContext but it is not specified")
@@ -134,7 +134,7 @@ public class CoreDataContext {
         let context = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
         context.name = "CoreDataTransaction"
         
-        switch self.transactionTarget {
+        switch self.updateTarget {
         case .MainContext:
             context.parentContext = self.mainContext
             autoMerge = true
@@ -155,7 +155,7 @@ public class CoreDataContext {
 //---------------------------------------------------------------------------
 
 public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
-    public init(stack: CoreDataStack, transactionTarget: TransactionTarget = .MainContext, transactionOrder: TransactionOrder = .Concurrent) throws {
+    public init(stack: CoreDataStack, uodateTarget: UpdateTarget = .MainContext, updateOrder: UpdateOrder = .Default) throws {
         let context = NSManagedObjectContext(concurrencyType: .MainQueueConcurrencyType)
         context.name = "CoreDataMainContext"
         context.mergePolicy = NSRollbackMergePolicy
@@ -166,7 +166,7 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
             context.persistentStoreCoordinator = stack.persistentStoreCoordinator
         }
         
-        try super.init(stack: stack, mainContext: context, transactionTarget: transactionTarget, transactionOrder: transactionOrder)
+        try super.init(stack: stack, mainContext: context, updateTarget: uodateTarget, updateOrder: updateOrder)
     }
     
     public final var managedObjectContext: NSManagedObjectContext {

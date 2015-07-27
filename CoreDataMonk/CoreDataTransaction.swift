@@ -48,7 +48,7 @@ public class CoreDataTransaction {
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {
-        if let queue = self.origin.transactionQueue {
+        if let queue = self.origin.updateQueue {
             dispatch_async(queue) {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
@@ -76,7 +76,7 @@ public class CoreDataTransaction {
     }
 
     public func performAndWait(block: (CoreDataUpdate) throws -> Void) {
-        if let queue = self.origin.transactionQueue {
+        if let queue = self.origin.updateQueue {
             dispatch_sync(queue) {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
@@ -104,7 +104,7 @@ public class CoreDataTransaction {
     }
     
     public func wait() {
-        if let queue = self.origin.transactionQueue {
+        if let queue = self.origin.updateQueue {
             dispatch_sync(queue) {
                 // do nothing
             }

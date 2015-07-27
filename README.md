@@ -452,31 +452,31 @@ STORE   V
 You can easily setup this via CoreDataMonk, let's take a look at `.init` of `CoreDataMainContext`:
 
 ````swift
-public enum TransactionTarget {
+public enum UpdateTarget {
     case MainContext
     case RootContext(autoMerge: Bool)
     case PersistentStore
 }
 
-public enum TransactionOrder {
+public enum UpdateOrder {
     case Serial
-    case Concurrent
+    case Default
 }
 
 public init(stack: CoreDataStack,
-        transactionTarget: TransactionTarget = .MainContext,
-        transactionOrder: TransactionOrder = .Concurrent) throws
+        updateTarget: UpdateTarget = .MainContext,
+        updateOrder: UpdateOrder = .Default) throws
 ````
 
-The `transactionTarget` specify what is the parent context of `CoreDataTransaction`, the default is `.MainContext`.
-Now we only need to change it `.RootContext(autoMerge: true)` to have it connect to ROOT with auto merge, then we are done.
+The `updateTarget` specify what is the parent context of `CoreDataTransaction`, the default is `.MainContext`.
+Now we only need to change it to `.RootContext(autoMerge: true)` to have it connect to ROOT with auto merge, then we are done.
 
 ````swift
 func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
     do {
         let dataStack = try CoreDataStack()
         try dataStack.addDatabaseStore(resetOnFailure: true)
-        World = try CoreDataMainContext(stack: dataStack, transactionTarget: .RootContext(autoMerge: true))
+        World = try CoreDataMainContext(stack: dataStack, updateTarget: .RootContext(autoMerge: true))
 
         ...
     } catch let error {
@@ -529,7 +529,7 @@ class AppDelegate {
         do {
             DataStack = try CoreDataStack()
             try DataStack.addDatabaseStore(resetOnFailure: true)
-            Updater = try CoreDataContext(stack: DataStack, transactionTarget: .PersistentStore)
+            Updater = try CoreDataContext(stack: DataStack, updateTarget: .PersistentStore)
             ...
         } catch let error {
             fatalError("fail to init core data: \(error)")
@@ -549,7 +549,7 @@ class ViewController : UIViewController {
         super.viewDidLoad()
 
         do {
-            self.context = try CoreDataMainContext(stack: DataStack, transactionTarget: .PersistentStore)
+            self.context = try CoreDataMainContext(stack: DataStack, updateTarget: .PersistentStore)
             self.observer = Updater.observeCommit() {
                 self.context.reset()
                 ...
@@ -573,14 +573,14 @@ class BackgroundWorker {
 }
 ````
 
-Advanced setup: Force transaction in serial order
--------------------------------------------------
+Advanced setup: Force update in serial order
+--------------------------------------------
 
-By default CoreDataMonk will allow different threads to create different transactions at the same time.
+By default CoreDataMonk will allow different threads to call `.beginUpdate` at the same time.
 This is good for performance, but as you might think, there are chances different threads work on
 the same entity, and you may have data race problem.
 
-The problem may not be as serious as you think, that is why we allow concurrent transactions by default.
+The problem may not be as serious as you think, that is why we allow concurrent update by default.
 The key is how different threads process entities. In most cases, most applications use different threads
 to process different entities, thus you don't have data race problem.
 
@@ -591,7 +591,7 @@ func application(application: UIApplication, didFinishLaunchingWithOptions launc
     do {
         let dataStack = try CoreDataStack()
         try dataStack.addDatabaseStore(resetOnFailure: true)
-        World = try CoreDataMainContext(stack: dataStack, transactionOrder: .Serial)
+        World = try CoreDataMainContext(stack: dataStack, updateOrder: .Serial)
 
         ...
     } catch let error {
@@ -600,3 +600,14 @@ func application(application: UIApplication, didFinishLaunchingWithOptions launc
     ...
 }
 ````
+
+To be clear, each `.perform()` in the same transaction is always in serial, it is different transactions may have its `.perform()`
+running at the same time.
+
+What `updateOrder: .Serial` does is to ensure only one `.perform()` can be running at a time. But it might still have data
+consistency problem if you are using long running transaction, as there will be `.perform()` from other transaction in between
+your call to `.perform()` of long running transaction.
+
+The rule is actually very simple, just don't call `.beginTransaction()` if you are using `updateOrder: .Serial`,
+use `.beginUpdate()` exclusively.
+
