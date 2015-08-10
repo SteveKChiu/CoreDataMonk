@@ -122,17 +122,17 @@ public class CoreDataContext {
     }
 
     public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
-        beginTransaction().perform(block)
+        beginUpdateContext().perform(block)
     }
 
     public func beginUpdateAndWait(block: (CoreDataUpdate) throws -> Void) {
-        beginTransaction().performAndWait(block)
+        beginUpdateContext().performAndWait(block)
     }
 
-    public func beginTransaction() -> CoreDataTransaction {
+    public func beginUpdateContext() -> CoreDataUpdateContext {
         let autoMerge: Bool
         let context = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
-        context.name = "CoreDataTransaction"
+        context.name = "CoreDataUpdateContext"
         
         switch self.updateTarget {
         case .MainContext:
@@ -148,7 +148,7 @@ public class CoreDataContext {
             autoMerge = false
         }
         
-        return CoreDataTransaction(context: context, origin: self, autoMerge: autoMerge)
+        return CoreDataUpdateContext(context: context, origin: self, autoMerge: autoMerge)
     }
 }
 

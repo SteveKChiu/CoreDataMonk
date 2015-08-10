@@ -16,13 +16,13 @@ CoreDataMonk class
 
 CoreDataMonk provides some class that you may need to know, here is the relationship with CoreData class:
 
-CoreDataMonk class    | CoreData classes
-----------------------|-----------------
-`CoreDataStack`       | `NSPersistentStoreCoordinator`, `NSManagedObjectContext` (PrivateQueueConcurrencyType, root saving context, optional)
-`CoreDataMainContext` | `NSManagedObjectContext` (MainQueueConcurrencyType, main context), it is sub class of `CoreDataContext`
-`CoreDataContext`     | none, but it act as factory to create `CoreDataTransaction`
-`CoreDataTransaction` | `NSManagedObjectContext` (PrivateQueueConcurrencyType, update context)
-`CoreDataUpdate`      | interface to `CoreDataTransaction`
+CoreDataMonk class      | CoreData classes
+------------------------|-----------------
+`CoreDataStack`         | `NSPersistentStoreCoordinator`, `NSManagedObjectContext` (PrivateQueueConcurrencyType, root saving context, optional)
+`CoreDataMainContext`   | `NSManagedObjectContext` (MainQueueConcurrencyType, main context), it is sub class of `CoreDataContext`
+`CoreDataContext`       | none, but it act as factory to create `CoreDataUpdateContext`
+`CoreDataUpdateContext` | `NSManagedObjectContext` (PrivateQueueConcurrencyType, update context)
+`CoreDataUpdate`        | interface to `CoreDataUpdateContext`
 
 You only need to explicitly create `CoreDataStack` and `CoreDataMainContext` as in the getting started section, other classes are created via methods and can not be created by user.
 
@@ -199,12 +199,12 @@ World.beginUpdate() {
 }
 ````
 
-If the update takes multiple steps and can not be done in one block, you can use `.beginTransaction()`:
+If the update takes multiple steps and can not be done in one block, you can use `.beginUpdateContext()`:
 
 ````swift
-let transaction = World.beginTransaction()
+let context = World.beginUpdateContext()
 
-transaction.perform() {
+context.perform() {
     update in
 
     ...
@@ -212,7 +212,7 @@ transaction.perform() {
 
 ...
 
-transaction.perform() {
+context.perform() {
     update in
 
     ...
@@ -220,7 +220,7 @@ transaction.perform() {
 
 ...
 
-transaction.perform() {
+context.perform() {
     update in
 
     ...
@@ -228,10 +228,10 @@ transaction.perform() {
 }
 ````
 
-In fact, `.beginUpdate()` is just a temporary transaction with perform:
+In fact, `.beginUpdate()` is just a temporary update context with perform:
 ````swift
 public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
-    beginTransaction().perform(block)
+    beginUpdateContext().perform(block)
 }
 ````
 
@@ -299,6 +299,12 @@ Expression                  | Description
 `.PropertiesOnly([String])` | `fetchRequest.propertiesToFetch = [String]` // ignored in .query
 `.Distinct`                 | `fetchRequest.returnsDistinctResults = true`
 `.Tweak(NSFetchRequest -> Void)` | allow block to modify fetchRequest
+
+You can use `|` operator to combine two or more options:
+
+Operator    | Example                      | Description
+------------|------------------------------|-------------
+`|`         | `.Limit(200) | .Offset(100)` | The same as `[.Limit(200), .Offset(100)]`
 
 `.query` and `.queryValue` select expression
 --------------------------------------------
@@ -384,11 +390,11 @@ Advanced setup: default three-tier setup
 ----------------------------------------
 
 By default CoreDataMonk provides three tier setup of `NSManagedObjectContext`, it looks like the following.
-Note the `CoreDataTransaction` is temporary, it is created and then released after completed.
+Note the `CoreDataUpdateContext` is temporary, it is created and then released after completed.
 
 ````
-TRANSACTION                                 <-- MAIN.beginUpdate
-[CoreDataTransaction]
+UPDATE                                     <-- MAIN.beginUpdate
+[CoreDataUpdateContext]
 (NSManagedObjectContext/PrivateQueue)
         |
         |
@@ -430,8 +436,8 @@ The disadvantage is it may not get all the data, especially if you need some pro
 you may not get notification at all.
 
 ````
-TRANSACTION                                 <-- MAIN.beginUpdate
-[CoreDataTransaction]
+UPDATE                                     <-- MAIN.beginUpdate
+[CoreDataUpdateContext]
 (NSManagedObjectContext/PrivateQueue)
         |
         |           MAIN (Global)           --> MAIN.fetch
@@ -468,7 +474,7 @@ public init(stack: CoreDataStack,
         updateOrder: UpdateOrder = .Default) throws
 ````
 
-The `updateTarget` specify what is the parent context of `CoreDataTransaction`, the default is `.MainContext`.
+The `updateTarget` specify what is the parent context of `CoreDataUpdateContext`, the default is `.MainContext`.
 Now we only need to change it to `.RootContext(autoMerge: true)` to have it connect to ROOT with auto merge, then we are done.
 
 ````swift
@@ -496,8 +502,8 @@ This is yet another interesting setup, that you don't have merge at all, you sim
 commit notification.
 
 ````
-TRANSACTION                                 <-- (UPDATER or MAIN).beginUpdate
-[CoreDataTransaction]
+UPDATE                                 <-- (UPDATER or MAIN).beginUpdate
+[CoreDataUpdateContext]
 (NSManagedObjectContext/PrivateQueue)
         |                                          UPDATER
         |                                          [CoreDataContext]
@@ -601,13 +607,13 @@ func application(application: UIApplication, didFinishLaunchingWithOptions launc
 }
 ````
 
-To be clear, each `.perform()` in the same transaction is always in serial, it is different transactions may have its `.perform()`
+To be clear, each `.perform()` in the same update context is always in serial, it is different update contexts may have its `.perform()`
 running at the same time.
 
 What `updateOrder: .Serial` does is to ensure only one `.perform()` can be running at a time globally. But it might still have data
-consistency problem if you are using long running transaction, as there will be `.perform()` from other transaction in between
-your call to `.perform()` of the long running transaction.
+consistency problem if you are using long running update context, as there will be `.perform()` from other update context in between
+your call to `.perform()` of the long running update context.
 
-The rule to avoid that is actually very simple, just don't call `.beginTransaction()` if you are using `updateOrder: .Serial`,
+The rule to avoid that is actually very simple, just don't call `.beginUpdateContext()` if you are using `updateOrder: .Serial`,
 use `.beginUpdate()` exclusively.
 

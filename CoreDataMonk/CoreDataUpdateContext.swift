@@ -28,7 +28,7 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-public class CoreDataTransaction {
+public class CoreDataUpdateContext {
     let context: NSManagedObjectContext
     let origin: CoreDataContext
     let autoMerge: Bool
@@ -53,7 +53,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(transaction: self, group: group)
+                    let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -65,7 +65,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlock() {
-                let update = CoreDataUpdate(transaction: self, group: nil)
+                let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -81,7 +81,7 @@ public class CoreDataTransaction {
                 let group = dispatch_group_create()
                 dispatch_group_enter(group)
                 self.context.performBlock() {
-                    let update = CoreDataUpdate(transaction: self, group: group)
+                    let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
                     } catch let error {
@@ -93,7 +93,7 @@ public class CoreDataTransaction {
             }
         } else {
             self.context.performBlockAndWait() {
-                let update = CoreDataUpdate(transaction: self, group: nil)
+                let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
                 } catch let error {
@@ -135,11 +135,11 @@ public class CoreDataTransaction {
 //---------------------------------------------------------------------------
 
 public class CoreDataUpdate : CoreDataFetch {
-    let transaction: CoreDataTransaction
+    let context: CoreDataUpdateContext
     let group: dispatch_group_t?
     
-    init(transaction: CoreDataTransaction, group: dispatch_group_t?) {
-        self.transaction = transaction
+    init(context: CoreDataUpdateContext, group: dispatch_group_t?) {
+        self.context = context
         self.group = group
 
         if let group = self.group {
@@ -154,11 +154,11 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     public final var managedObjectContext: NSManagedObjectContext {
-        return self.transaction.context
+        return self.context.context
     }
     
     public final func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
-        return try self.transaction.origin.metadataForEntityClass(type)
+        return try self.context.origin.metadataForEntityClass(type)
     }
 
     public func create<T: NSManagedObject>(type: T.Type) throws -> T {
@@ -244,7 +244,7 @@ public class CoreDataUpdate : CoreDataFetch {
             do {
                 try block(self)
             } catch let error {
-                self.transaction.handleError(error)
+                self.context.handleError(error)
             }
         }
     }
@@ -257,12 +257,12 @@ public class CoreDataUpdate : CoreDataFetch {
                 do {
                     try self.saveContext(parent)
                 } catch let error {
-                    self.transaction.handleError(error)
+                    self.context.handleError(error)
                 }
             }
         } else {
-            if !self.transaction.autoMerge {
-                NSNotificationCenter.defaultCenter().postNotificationName(CoreDataContext.CommitNotification, object: self.transaction.origin)
+            if !self.context.autoMerge {
+                NSNotificationCenter.defaultCenter().postNotificationName(CoreDataContext.CommitNotification, object: self.context.origin)
             }
         }
     }

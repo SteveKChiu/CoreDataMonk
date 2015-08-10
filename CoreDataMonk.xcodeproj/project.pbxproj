@@ -12,7 +12,7 @@
 		AADF00F31B679790007F7A38 /* CoreDataExpression.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00EA1B679790007F7A38 /* CoreDataExpression.swift */; };
 		AADF00F41B679790007F7A38 /* CoreDataFetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00EB1B679790007F7A38 /* CoreDataFetch.swift */; };
 		AADF00F61B679790007F7A38 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00ED1B679790007F7A38 /* CoreDataStack.swift */; };
-		AADF00F71B679790007F7A38 /* CoreDataTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00EE1B679790007F7A38 /* CoreDataTransaction.swift */; };
+		AADF00F71B679790007F7A38 /* CoreDataUpdateContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */; };
 		AADF00F91B679790007F7A38 /* TableViewDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */; };
 /* End PBXBuildFile section */
 
@@ -24,7 +24,7 @@
 		AADF00EB1B679790007F7A38 /* CoreDataFetch.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataFetch.swift; sourceTree = "<group>"; };
 		AADF00EC1B679790007F7A38 /* CoreDataMonk.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CoreDataMonk.h; sourceTree = "<group>"; };
 		AADF00ED1B679790007F7A38 /* CoreDataStack.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataStack.swift; sourceTree = "<group>"; };
-		AADF00EE1B679790007F7A38 /* CoreDataTransaction.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataTransaction.swift; sourceTree = "<group>"; };
+		AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataUpdateContext.swift; sourceTree = "<group>"; };
 		AADF00EF1B679790007F7A38 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TableViewDataProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -65,7 +65,7 @@
 				AADF00EB1B679790007F7A38 /* CoreDataFetch.swift */,
 				AADF00EC1B679790007F7A38 /* CoreDataMonk.h */,
 				AADF00ED1B679790007F7A38 /* CoreDataStack.swift */,
-				AADF00EE1B679790007F7A38 /* CoreDataTransaction.swift */,
+				AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */,
 				AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */,
 				AADF00EF1B679790007F7A38 /* Info.plist */,
 			);
@@ -151,7 +151,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AADF00F61B679790007F7A38 /* CoreDataStack.swift in Sources */,
-				AADF00F71B679790007F7A38 /* CoreDataTransaction.swift in Sources */,
+				AADF00F71B679790007F7A38 /* CoreDataUpdateContext.swift in Sources */,
 				AADF00F21B679790007F7A38 /* CoreDataContext.swift in Sources */,
 				AADF00F91B679790007F7A38 /* TableViewDataProvider.swift in Sources */,
 				AADF00F31B679790007F7A38 /* CoreDataExpression.swift in Sources */,
