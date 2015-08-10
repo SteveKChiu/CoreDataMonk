@@ -87,7 +87,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         self.movedItems = [(NSIndexPath, NSIndexPath)]()
     }
 
-    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: NSManagedObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
         switch type {
         case .Insert:
             self.insertedItems?.append(newIndexPath!)

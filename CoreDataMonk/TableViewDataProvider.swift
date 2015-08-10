@@ -101,7 +101,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         self.tableView?.beginUpdates()
     }
 
-    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: NSManagedObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
         switch type {
         case .Insert:
             self.tableView?.insertRowsAtIndexPaths([newIndexPath!], withRowAnimation: .Automatic)
