@@ -56,7 +56,7 @@ public class CoreDataUpdateContext {
                     let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
-                    } catch let error {
+                    } catch {
                         self.handleError(error)
                     }
                     dispatch_group_leave(group)
@@ -68,7 +68,7 @@ public class CoreDataUpdateContext {
                 let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
-                } catch let error {
+                } catch {
                     self.handleError(error)
                 }
             }
@@ -84,7 +84,7 @@ public class CoreDataUpdateContext {
                     let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
-                    } catch let error {
+                    } catch {
                         self.handleError(error)
                     }
                     dispatch_group_leave(group)
@@ -96,7 +96,7 @@ public class CoreDataUpdateContext {
                 let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
-                } catch let error {
+                } catch {
                     self.handleError(error)
                 }
             }
@@ -243,7 +243,7 @@ public class CoreDataUpdate : CoreDataFetch {
         self.managedObjectContext.performBlock() {
             do {
                 try block(self)
-            } catch let error {
+            } catch {
                 self.context.handleError(error)
             }
         }
@@ -256,7 +256,7 @@ public class CoreDataUpdate : CoreDataFetch {
             parent.performBlock() {
                 do {
                     try self.saveContext(parent)
-                } catch let error {
+                } catch {
                     self.context.handleError(error)
                 }
             }

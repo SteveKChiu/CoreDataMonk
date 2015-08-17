@@ -3,7 +3,7 @@ Pod::Spec.new do |s|
   s.name         = "CoreDataMonk"
   s.version      = "0.9.1"
 
-  s.summary      = "A flexible and easy-to-use CoreData library"
+  s.summary      = "A flexible and easy-to-use CoreData library for Swift"
   s.description  = <<-DESC
       CoreDataMonk is a helper library to make using CoreData easier and safer in the concurrent setup.
       The main features of CoreDataMonk are:
@@ -13,11 +13,11 @@ Pod::Spec.new do |s|
       + API that is easy to use and understand
       + Swift friendly query expression
       + Serialized update to avoid data consistency problem (optional)
-      + Use exception for error handling
+      + Use Swift 2.0 error handling model
   DESC
 
   s.homepage     = "https://github.com/SteveKChiu/CoreDataMonk"
-  s.license      = { :type => "MIT" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
   s.author       = { "Steve K. Chiu" => "steve.k.chiu@gmail.com" }
 
   s.ios.deployment_target = "8.0"
