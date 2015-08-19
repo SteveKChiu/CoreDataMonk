@@ -117,17 +117,17 @@ public class CoreDataUpdateContext {
 
     public func commit() {
         perform() {
-            trans in
+            update in
             
-            try trans.commit()
+            try update.commit()
         }
     }
     
     public func rollback() {
         perform() {
-            trans in
+            update in
             
-            trans.rollback()
+            update.rollback()
         }
     }
 }
