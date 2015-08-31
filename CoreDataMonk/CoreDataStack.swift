@@ -139,16 +139,16 @@ public class CoreDataStack {
             
                 try updateMetadata(store)
                 return
-            } catch let err {
-                let error = err as NSError
+            } catch {
+                let error = error as NSError
                 guard !retried && resetOnFailure && error.domain == NSCocoaErrorDomain else {
-                    throw err
+                    throw error
                 }
                 
                 guard error.code == NSPersistentStoreIncompatibleVersionHashError
                         || error.code == NSMigrationMissingSourceModelError
                         || error.code == NSMigrationError else {
-                    throw err
+                    throw error
                 }
                 
                 let path = fileURL.path!
