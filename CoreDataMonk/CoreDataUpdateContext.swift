@@ -135,7 +135,7 @@ public class CoreDataUpdateContext {
 //---------------------------------------------------------------------------
 
 public class CoreDataUpdate : CoreDataFetch {
-    let context: CoreDataUpdateContext
+    public let context: CoreDataUpdateContext
     let group: dispatch_group_t?
     
     init(context: CoreDataUpdateContext, group: dispatch_group_t?) {
