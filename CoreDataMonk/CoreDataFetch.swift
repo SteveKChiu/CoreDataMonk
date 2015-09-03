@@ -43,6 +43,10 @@ public extension CoreDataFetch {
         }
     }
 
+    public func use<T: NSManagedObject>(objs: [T]) throws -> [T] {
+        return try objs.map({ try self.use($0) })
+    }
+
     public func fetch<T: NSManagedObject>(type: T.Type, id: NSManagedObjectID) throws -> T {
         return try self.managedObjectContext.existingObjectWithID(id) as! T
     }
