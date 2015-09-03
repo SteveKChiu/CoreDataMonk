@@ -178,6 +178,14 @@ public class TableViewDataProvider<EntityType: NSManagedObject> {
         self.context = context
     }
     
+    public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {
+        return self.resultsController?.objectAtIndexPath(indexPath) as? EntityType
+    }
+    
+    public func indexPathForObject(object: EntityType) -> NSIndexPath? {
+        return self.resultsController?.indexPathForObject(object)
+    }
+
     public func bind(tableView: UITableView, onGetCell: OnGetCellCallbck) -> TableViewDataProvider<EntityType> {
         self.onGetCell = onGetCell
         self.tableView = tableView

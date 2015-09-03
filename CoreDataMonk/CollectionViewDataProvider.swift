@@ -223,6 +223,14 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> {
         self.context = context
     }
     
+    public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {
+        return self.resultsController?.objectAtIndexPath(indexPath) as? EntityType
+    }
+    
+    public func indexPathForObject(object: EntityType) -> NSIndexPath? {
+        return self.resultsController?.indexPathForObject(object)
+    }
+    
     public func bind(collectionView: UICollectionView, onGetCell: OnGetCellCallback) -> CollectionViewDataProvider<EntityType> {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
