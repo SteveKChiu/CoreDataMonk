@@ -69,7 +69,11 @@ public extension CoreDataFetch {
         request.predicate = query.predicate
         try options?.apply(request)
         
-        return try self.managedObjectContext.executeFetchRequest(request).first as! T
+        guard let obj = try self.managedObjectContext.executeFetchRequest(request).first else {
+            throw NSError(domain: "err.not.found", code: 0, userInfo: nil)
+        }
+        
+        return obj as! T
     }
 
     public final func fetchCount<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> Int {

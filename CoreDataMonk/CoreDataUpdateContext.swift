@@ -211,6 +211,10 @@ public class CoreDataUpdate : CoreDataFetch {
         do {
             return try fetch(type, query)
         } catch {
+            if (error as NSError).domain != "err.not.found" {
+                throw error
+            }
+            
             let obj = try create(type)
             try applyProperties(obj, predicate: query.predicate)
             return obj
