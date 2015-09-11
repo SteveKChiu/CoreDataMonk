@@ -38,13 +38,25 @@ public extension CoreDataFetch {
     public func use<T: NSManagedObject>(obj: T) throws -> T {
         if obj.managedObjectContext === self.managedObjectContext {
             return obj
-        } else {
-            return try self.managedObjectContext.existingObjectWithID(obj.objectID) as! T
         }
+        
+        if obj.objectID.temporaryID {
+            try self.managedObjectContext.obtainPermanentIDsForObjects([ obj ])
+        }
+        return try self.managedObjectContext.existingObjectWithID(obj.objectID) as! T
     }
 
     public func use<T: NSManagedObject>(objs: [T]) throws -> [T] {
-        return try objs.map({ try self.use($0) })
+        try self.managedObjectContext.obtainPermanentIDsForObjects(objs)
+        return try objs.map() {
+            obj in
+            
+            if obj.managedObjectContext === self.managedObjectContext {
+                return obj
+            } else {
+                return try self.managedObjectContext.existingObjectWithID(obj.objectID) as! T
+            }
+        }
     }
 
     public func fetch<T: NSManagedObject>(type: T.Type, id: NSManagedObjectID) throws -> T {
