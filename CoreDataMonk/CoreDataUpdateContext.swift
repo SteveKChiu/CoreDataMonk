@@ -254,6 +254,10 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     private func saveContext(context: NSManagedObjectContext) throws {
+        if !context.hasChanges {
+            return
+        }
+    
         try context.save()
         
         if let parent = context.parentContext {
