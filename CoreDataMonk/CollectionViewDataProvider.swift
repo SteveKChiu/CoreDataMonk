@@ -187,9 +187,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
 //---------------------------------------------------------------------------
 
 public class CollectionViewDataProvider<EntityType: NSManagedObject> {
-    private lazy var bridge: CollectionViewDataBridge<EntityType> = {
-        return CollectionViewDataBridge<EntityType>(provider: self)
-    }()
+    private var bridge: CollectionViewDataBridge<EntityType>!
     
     public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell
     public typealias OnGetSupplementaryCallback = (String, NSIndexPath) -> UICollectionReusableView
@@ -221,6 +219,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> {
 
     public init(context: CoreDataMainContext) {
         self.context = context
+        self.bridge = CollectionViewDataBridge<EntityType>(provider: self)
     }
     
     public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {

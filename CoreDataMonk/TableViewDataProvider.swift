@@ -138,9 +138,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
 //---------------------------------------------------------------------------
 
 public class TableViewDataProvider<EntityType: NSManagedObject> {
-    private lazy var bridge: TableViewDataBridge<EntityType> = {
-        return TableViewDataBridge<EntityType>(provider: self)
-    }()
+    private var bridge: TableViewDataBridge<EntityType>!
     
     public typealias OnGetCellCallbck = (EntityType, NSIndexPath) -> UITableViewCell
     public typealias OnDeleteCellCallbck = (EntityType, NSIndexPath) -> Void
@@ -176,6 +174,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> {
 
     public init(context: CoreDataMainContext) {
         self.context = context
+        self.bridge = TableViewDataBridge<EntityType>(provider: self)
     }
     
     public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {
