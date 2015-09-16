@@ -152,7 +152,8 @@ public func | (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQueryKey
 }
 
 public func == (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
-    return lhs.compare(.EqualToPredicateOperatorType, (rhs ??  NSNull()) as! AnyObject)
+    let rhs = rhs == nil ? NSNull() : asConstant(rhs!)
+    return lhs.compare(.EqualToPredicateOperatorType, rhs)
 }
 
 public func == (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
@@ -160,7 +161,8 @@ public func == (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 }
 
 public func != (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
-    return lhs.compare(.NotEqualToPredicateOperatorType, (rhs ??  NSNull()) as! AnyObject)
+    let rhs = rhs == nil ? NSNull() : asConstant(rhs!)
+    return lhs.compare(.NotEqualToPredicateOperatorType, rhs)
 }
 
 public func != (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
@@ -168,7 +170,8 @@ public func != (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(.GreaterThanPredicateOperatorType, rhs as! AnyObject)
+    let rhs = asConstant(rhs)
+    return lhs.compare(.GreaterThanPredicateOperatorType, rhs)
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
@@ -176,7 +179,8 @@ public func > (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(.LessThanPredicateOperatorType, rhs as! AnyObject)
+    let rhs = asConstant(rhs)
+    return lhs.compare(.LessThanPredicateOperatorType, rhs)
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
@@ -184,7 +188,8 @@ public func < (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs as! AnyObject)
+    let rhs = asConstant(rhs)
+    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs)
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
@@ -192,11 +197,47 @@ public func >= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
-    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs as! AnyObject)
+    let rhs = asConstant(rhs)
+    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs)
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
     return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs)
+}
+
+private func asConstant(value: Any) -> AnyObject {
+    // String, Bool, Int, Float, Double can be casted to AnyObject implicitly
+    if let value = value as? AnyObject {
+        return value
+    }
+    
+    // Need to convert these Intxx/UIntxx types explicitly
+    if let value = value as? Int64 {
+        return NSNumber(longLong: value)
+    }
+    if let value = value as? UInt64 {
+        return NSNumber(unsignedLongLong: value)
+    }
+    if let value = value as? Int32 {
+        return NSNumber(int: value)
+    }
+    if let value = value as? UInt32 {
+        return NSNumber(unsignedInt: value)
+    }
+    if let value = value as? Int16 {
+        return NSNumber(short: value)
+    }
+    if let value = value as? UInt16 {
+        return NSNumber(unsignedShort: value)
+    }
+    if let value = value as? Int8 {
+        return NSNumber(char: value)
+    }
+    if let value = value as? UInt8 {
+        return NSNumber(unsignedChar: value)
+    }
+    
+    fatalError("\(value) can not be converted to CoreData constant value")
 }
 
 //---------------------------------------------------------------------------
