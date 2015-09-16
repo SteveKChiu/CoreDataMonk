@@ -45,8 +45,8 @@ public class CoreDataStack {
     public var lastError: NSError?
     public var onError: OnError?
     
-    private let coordinator: NSPersistentStoreCoordinator!
-    private let rootContext: NSManagedObjectContext?
+    private var coordinator: NSPersistentStoreCoordinator!
+    private var rootContext: NSManagedObjectContext?
     
     public init(modelName: String? = nil, bundle: NSBundle? = nil, rootContext: RootContextType = .Shared) throws {
         let bundle = bundle ?? NSBundle.mainBundle()
@@ -54,8 +54,6 @@ public class CoreDataStack {
         
         guard let modelUrl = bundle.URLForResource(modelName, withExtension: "momd"),
                   model = NSManagedObjectModel(contentsOfURL: modelUrl) else {
-            self.coordinator = nil
-            self.rootContext = nil
             throw CoreDataError("Can not load core data model from '\(modelName)'")
         }
         
@@ -68,8 +66,6 @@ public class CoreDataStack {
             context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
             context.undoManager = nil
             self.rootContext = context
-        } else {
-            self.rootContext = nil
         }
     }
     
@@ -153,11 +149,7 @@ public class CoreDataStack {
                 
                 let path = fileURL.path!
                 for file in [ path, path + "-shm", path + "-wal"] {
-                    do {
-                        try fileManager.removeItemAtPath(file)
-                    } catch {
-                        // ignore
-                    }
+                    _ = try? fileManager.removeItemAtPath(file)
                 }
                 
                 retried = true

@@ -211,7 +211,7 @@ public class CoreDataUpdate : CoreDataFetch {
         do {
             return try fetch(type, query)
         } catch {
-            if (error as NSError).domain != "err.not.found" {
+            if (error as NSError).domain != "CoreDataMonk.NotFound" {
                 throw error
             }
             
@@ -256,6 +256,10 @@ public class CoreDataUpdate : CoreDataFetch {
     private func saveContext(context: NSManagedObjectContext) throws {
         if !context.hasChanges {
             return
+        }
+        
+        if !context.insertedObjects.isEmpty {
+            try context.obtainPermanentIDsForObjects(Array(context.insertedObjects))
         }
     
         try context.save()
