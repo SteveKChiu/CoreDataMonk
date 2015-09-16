@@ -104,14 +104,14 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
         switch type {
         case .Insert:
-            self.tableView?.insertRowsAtIndexPaths([newIndexPath!], withRowAnimation: .Automatic)
+            self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
         case .Delete:
-            self.tableView?.deleteRowsAtIndexPaths([indexPath!], withRowAnimation: .Automatic)
+            self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
         case .Move:
-            self.tableView?.deleteRowsAtIndexPaths([indexPath!], withRowAnimation: .Automatic)
-            self.tableView?.insertRowsAtIndexPaths([newIndexPath!], withRowAnimation: .Automatic)
+            self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
+            self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
         case .Update:
-            self.tableView?.reloadRowsAtIndexPaths([indexPath!], withRowAnimation: .Automatic)
+            self.tableView?.reloadRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
         }
     }
     

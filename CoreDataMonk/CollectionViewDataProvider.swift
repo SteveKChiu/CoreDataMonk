@@ -32,12 +32,8 @@ import CoreData
 private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
     private unowned var provider: CollectionViewDataProvider<EntityType>
-    private var insertedSections: NSMutableIndexSet!
-    private var deletedSections: NSMutableIndexSet!
-    private var insertedItems: [NSIndexPath]!
-    private var deletedItems: [NSIndexPath]!
-    private var updatedItems: [NSIndexPath]!
-    private var movedItems: [(NSIndexPath, NSIndexPath)]!
+    private var pendingActions: [ () -> Void ] = []
+    private var shouldReloadData = false
     
     private var collectionView: UICollectionView? {
         return self.provider.collectionView
@@ -79,107 +75,54 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
-        self.insertedSections = NSMutableIndexSet()
-        self.deletedSections = NSMutableIndexSet()
-        self.insertedItems = [NSIndexPath]()
-        self.deletedItems = [NSIndexPath]()
-        self.updatedItems = [NSIndexPath]()
-        self.movedItems = [(NSIndexPath, NSIndexPath)]()
+        self.pendingActions.removeAll()
+        self.shouldReloadData = false
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+        if self.shouldReloadData {
+            return
+        }
+    
         switch type {
         case .Insert:
-            self.insertedItems?.append(newIndexPath!)
+            self.pendingActions.append() {
+                self.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
+            }
         case .Delete:
-            self.deletedItems?.append(indexPath!)
+            self.pendingActions.append() {
+                self.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
+            }
         case .Move:
-            self.movedItems?.append((indexPath!, newIndexPath!))
+            self.pendingActions.append() {
+                self.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
+            }
         case .Update:
-            self.updatedItems?.append(indexPath!)
+            self.pendingActions.removeAll()
+            self.shouldReloadData = true
         }
     }
     
     @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
-        switch type {
-        case .Insert:
-            self.insertedSections?.addIndex(sectionIndex)
-        case .Delete:
-            self.deletedSections?.addIndex(sectionIndex)
-        default:
-            break
-        }
+        self.pendingActions.removeAll()
+        self.shouldReloadData = true
     }
     
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
-        assert(NSThread.isMainThread())
-        guard let collectionView = self.collectionView
-                where self.insertedSections != nil else {
+        if self.shouldReloadData || self.collectionView?.window == nil {
+            self.pendingActions.removeAll()
+            self.collectionView?.reloadData()
             return
         }
-
-        if !self.movedItems.isEmpty {
-            self.movedItems = self.movedItems.filter {
-                let (from, to) = $0
-                if self.deletedSections.containsIndex(from.section) {
-                    if !self.insertedSections.containsIndex(to.section) {
-                        self.insertedItems.append(to)
-                    }
-                    return false
-                } else if self.insertedSections.containsIndex(to.section) {
-                    self.deletedItems.append(from)
-                    return false
-                } else {
-                    return true
-                }
-            }
-        }
         
-        if !self.deletedItems.isEmpty {
-            self.deletedItems = self.deletedItems.filter {
-                return !self.deletedSections.containsIndex($0.section)
-            }
-        }
-        
-        if !self.insertedItems.isEmpty {
-            self.insertedItems = self.insertedItems.filter {
-                return !self.insertedSections.containsIndex($0.section)
-            }
-        }
-        
-        collectionView.performBatchUpdates({
-            if self.deletedSections.count > 0 {
-                collectionView.deleteSections(self.deletedSections)
-            }
-            
-            if self.insertedSections.count > 0 {
-                collectionView.insertSections(self.insertedSections)
-            }
-            
-            if !self.deletedItems.isEmpty {
-                collectionView.deleteItemsAtIndexPaths(self.deletedItems)
-            }
-            
-            if !self.insertedItems.isEmpty {
-                collectionView.insertItemsAtIndexPaths(self.insertedItems)
-            }
-            
-            if !self.updatedItems.isEmpty {
-                collectionView.reloadItemsAtIndexPaths(self.updatedItems)
-            }
-            
-            for (from, to) in self.movedItems {
-                collectionView.moveItemAtIndexPath(from, toIndexPath: to)
+        self.collectionView?.performBatchUpdates({
+            for action in self.pendingActions {
+                action()
             }
         }, completion: {
-            _ in
+            finished in
             
-            self.insertedSections = nil
-            self.deletedSections = nil
-            self.insertedItems = nil
-            self.deletedItems = nil
-            self.updatedItems = nil
-            self.movedItems = nil
+            self.pendingActions.removeAll()
         })
     }
 }
