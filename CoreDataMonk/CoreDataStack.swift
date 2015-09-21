@@ -162,8 +162,8 @@ public class CoreDataStack {
     private func updateMetadata(store: NSPersistentStore) throws {
         if let entities = self.coordinator.managedObjectModel.entitiesForConfiguration(store.configurationName) {
             for entity in entities {
-                guard self.metadata[entity.managedObjectClassName] == nil else {
-                    throw CoreDataError("Class \(entity.managedObjectClassName) has been mapped to \(entity.name!), one class can only map to one entity")
+                if let meta = self.metadata[entity.managedObjectClassName] {
+                    throw CoreDataError("Class \(entity.managedObjectClassName) has been mapped to \(meta.entity.name!), and can not be mapped to \(entity.name!), one class can only map to one entity")
                 }
                 self.metadata[entity.managedObjectClassName] = (entity: entity, store: store)
             }
