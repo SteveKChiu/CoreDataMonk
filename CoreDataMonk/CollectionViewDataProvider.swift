@@ -173,15 +173,6 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> {
         return self.resultsController?.indexPathForObject(object)
     }
     
-    public func indexPathForObjectID(id: NSManagedObjectID) -> NSIndexPath? {
-        do {
-            let object = try self.context.fetch(EntityType.self, id: id)
-            return self.resultsController?.indexPathForObject(object)
-        } catch {
-            return nil
-        }
-    }
-
     public func bind(collectionView: UICollectionView, onGetCell: OnGetCellCallback) -> CollectionViewDataProvider<EntityType> {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
