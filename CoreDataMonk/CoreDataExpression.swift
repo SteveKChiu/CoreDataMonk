@@ -105,11 +105,11 @@ public enum CoreDataQueryKey {
     }
     
     public var any: CoreDataQueryKey {
-        return .KeyModifier(self.path, .AllPredicateModifier)
+        return .KeyModifier(self.path, .AnyPredicateModifier)
     }
     
     public var all: CoreDataQueryKey {
-        return .KeyModifier(self.path, .AnyPredicateModifier)
+        return .KeyModifier(self.path, .AllPredicateModifier)
     }
     
     private func compare(op: NSPredicateOperatorType, _ key: CoreDataQueryKey) -> CoreDataQuery {
