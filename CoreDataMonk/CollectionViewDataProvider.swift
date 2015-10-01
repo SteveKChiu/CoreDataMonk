@@ -33,7 +33,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
     private unowned var provider: CollectionViewDataProvider<EntityType>
     private var pendingActions: [ () -> Void ] = []
-    private var shouldReloadData = false
     
     private var collectionView: UICollectionView? {
         return self.provider.collectionView
@@ -76,14 +75,9 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
-        self.shouldReloadData = false
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
-        if self.shouldReloadData {
-            return
-        }
-    
         switch type {
         case .Insert:
             self.pendingActions.append() {
@@ -98,18 +92,31 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
                 self.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
             }
         case .Update:
-            self.pendingActions.removeAll()
-            self.shouldReloadData = true
+            self.pendingActions.append() {
+                self.collectionView?.reloadItemsAtIndexPaths([ indexPath! ])
+            }
         }
     }
     
     @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
-        self.pendingActions.removeAll()
-        self.shouldReloadData = true
+        switch type {
+        case .Insert:
+            self.pendingActions.append() {
+                self.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
+                self.collectionView?.collectionViewLayout.invalidateLayout()
+            }
+        case .Delete:
+            self.pendingActions.append() {
+                self.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
+                self.collectionView?.collectionViewLayout.invalidateLayout()
+            }
+        default:
+            break
+        }
     }
     
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
-        if self.shouldReloadData || self.collectionView?.window == nil {
+        if self.collectionView?.window == nil {
             self.pendingActions.removeAll()
             self.collectionView?.reloadData()
             return
