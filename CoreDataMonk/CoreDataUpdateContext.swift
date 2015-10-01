@@ -235,6 +235,8 @@ public class CoreDataUpdate : CoreDataFetch {
         let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
+        request.affectedStores = [ meta.store ]
+        request.predicate = query?.predicate
         request.fetchLimit = 0
         request.resultType = .ManagedObjectResultType
         request.returnsObjectsAsFaults = true
