@@ -242,7 +242,8 @@ public class CoreDataUpdate : CoreDataFetch {
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
         
-        try self.delete(try self.managedObjectContext.executeFetchRequest(request) as! [T])
+        let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
+        try self.delete(objects)
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {

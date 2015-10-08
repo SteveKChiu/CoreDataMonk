@@ -31,15 +31,16 @@ import CoreData
 
 private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
-    private unowned var provider: CollectionViewDataProvider<EntityType>
-    private var pendingActions: [ () -> Void ] = []
+    private weak var provider: CollectionViewDataProvider<EntityType>?
+    private var pendingActions: [() -> Void] = []
+    private var shouldReloadData = false
     
     private var collectionView: UICollectionView? {
-        return self.provider.collectionView
+        return self.provider?.collectionView
     }
     
     private var resultsController: NSFetchedResultsController? {
-        return self.provider.resultsController
+        return self.provider?.resultsController
     }
 
     private init(provider: CollectionViewDataProvider<EntityType>) {
@@ -59,7 +60,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     @objc func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
         if let object = self.resultsController?.objectAtIndexPath(indexPath) as? EntityType {
-            if let cell = self.provider.onGetCell?(object, indexPath) {
+            if let cell = self.provider?.onGetCell?(object, indexPath) {
                 return cell
             }
         }
@@ -67,7 +68,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func collectionView(collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, atIndexPath indexPath: NSIndexPath) -> UICollectionReusableView {
-        if let view = self.provider.onGetSupplementary?(kind, indexPath) {
+        if let view = self.provider?.onGetSupplementary?(kind, indexPath) {
             return view
         }
         return UICollectionReusableView()
@@ -75,6 +76,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
+        self.shouldReloadData = false
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
@@ -83,18 +85,19 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             self.pendingActions.append() {
                 self.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
             }
+            
         case .Delete:
             self.pendingActions.append() {
                 self.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
             }
+            
         case .Move:
             self.pendingActions.append() {
                 self.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
             }
+            
         case .Update:
-            self.pendingActions.append() {
-                self.collectionView?.reloadItemsAtIndexPaths([ indexPath! ])
-            }
+            self.shouldReloadData = true
         }
     }
     
@@ -105,18 +108,20 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
                 self.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
                 self.collectionView?.collectionViewLayout.invalidateLayout()
             }
+            
         case .Delete:
             self.pendingActions.append() {
                 self.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
                 self.collectionView?.collectionViewLayout.invalidateLayout()
             }
+            
         default:
             break
         }
     }
     
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
-        if self.collectionView?.window == nil {
+        if self.shouldReloadData || self.collectionView?.window == nil {
             self.pendingActions.removeAll()
             self.collectionView?.reloadData()
             return
