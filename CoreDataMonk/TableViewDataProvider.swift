@@ -32,7 +32,7 @@ import CoreData
 private class TableViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UITableViewDataSource, NSFetchedResultsControllerDelegate {
     private weak var provider: TableViewDataProvider<EntityType>?
-    private var pendingIndexPaths: Set<NSIndexPath> = []
+    private var updatedIndexPaths: Set<NSIndexPath> = []
     
     private var tableView: UITableView? {
         return self.provider?.tableView
@@ -99,7 +99,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
-        self.pendingIndexPaths.removeAll()
+        self.updatedIndexPaths.removeAll()
         self.tableView?.beginUpdates()
     }
 
@@ -110,15 +110,15 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
             
         case .Delete:
             self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
-            self.pendingIndexPaths.remove(indexPath!)
+            self.updatedIndexPaths.remove(indexPath!)
             
         case .Move:
             self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
             self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
-            self.pendingIndexPaths.remove(indexPath!)
+            self.updatedIndexPaths.remove(indexPath!)
             
         case .Update:
-            self.pendingIndexPaths.insert(indexPath!)
+            self.updatedIndexPaths.insert(indexPath!)
         }
     }
     
@@ -141,9 +141,10 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
 
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
         self.tableView?.endUpdates()
-        if !self.pendingIndexPaths.isEmpty {
-            let indexPaths = Array<NSIndexPath>(self.pendingIndexPaths)
-            self.pendingIndexPaths.removeAll()
+        
+        if !self.updatedIndexPaths.isEmpty {
+            let indexPaths = Array(self.updatedIndexPaths)
+            self.updatedIndexPaths.removeAll()
             self.tableView?.reloadRowsAtIndexPaths(indexPaths, withRowAnimation: .Automatic)
         }
     }

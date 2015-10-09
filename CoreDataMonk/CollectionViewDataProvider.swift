@@ -33,7 +33,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
     private weak var provider: CollectionViewDataProvider<EntityType>?
     private var pendingActions: [() -> Void] = []
-    private var shouldReloadData = false
+    private var updatedIndexPaths: Set<NSIndexPath> = []
     
     private var collectionView: UICollectionView? {
         return self.provider?.collectionView
@@ -76,28 +76,38 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
-        self.shouldReloadData = false
+        self.updatedIndexPaths.removeAll()
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
         switch type {
         case .Insert:
-            self.pendingActions.append() {
-                self.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
+            if !self.updatedIndexPaths.contains(newIndexPath!) {
+                self.pendingActions.append() {
+                    [weak self] in
+
+                    self?.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
+                }
             }
             
         case .Delete:
             self.pendingActions.append() {
-                self.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
+                [weak self] in
+                
+                self?.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
             }
+            self.updatedIndexPaths.remove(indexPath!)
             
         case .Move:
             self.pendingActions.append() {
-                self.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
+                [weak self] in
+                
+                self?.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
             }
+            self.updatedIndexPaths.remove(indexPath!)
             
         case .Update:
-            self.shouldReloadData = true
+            self.updatedIndexPaths.insert(indexPath!)
         }
     }
     
@@ -105,14 +115,18 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         switch type {
         case .Insert:
             self.pendingActions.append() {
-                self.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
-                self.collectionView?.collectionViewLayout.invalidateLayout()
+                [weak self] in
+                
+                self?.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
+                self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
             
         case .Delete:
             self.pendingActions.append() {
-                self.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
-                self.collectionView?.collectionViewLayout.invalidateLayout()
+                [weak self] in
+                
+                self?.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
+                self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
             
         default:
@@ -121,21 +135,21 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
-        if self.shouldReloadData || self.collectionView?.window == nil {
-            self.pendingActions.removeAll()
-            self.collectionView?.reloadData()
-            return
-        }
-        
         self.collectionView?.performBatchUpdates({
-            for action in self.pendingActions {
-                action()
-            }
-        }, completion: {
-            finished in
+            [weak self] in
             
-            self.pendingActions.removeAll()
-        })
+            if let actions = self?.pendingActions where !actions.isEmpty {
+                self?.pendingActions.removeAll()
+                for action in actions {
+                    action()
+                }
+            }
+            
+            if let indexPaths = self?.updatedIndexPaths where !indexPaths.isEmpty {
+                self?.updatedIndexPaths.removeAll()
+                self?.collectionView?.reloadItemsAtIndexPaths(Array(indexPaths))
+            }
+        }, completion: nil)
     }
 }
 
