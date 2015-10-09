@@ -54,7 +54,8 @@ public extension CoreDataFetch {
     public func fetch<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws -> [T] {
         var objs = [T]()
         for id in ids {
-            objs.append(try fetch(type, id: id))
+            let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
+            objs.append(obj)
         }
         return objs
     }
@@ -119,7 +120,7 @@ public extension CoreDataFetch {
         return try self.managedObjectContext.executeFetchRequest(request).first as! NSManagedObjectID
     }
 
-    public final func fetchAllIDs<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [NSManagedObjectID] {
+    public final func fetchAllID<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [NSManagedObjectID] {
         let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity

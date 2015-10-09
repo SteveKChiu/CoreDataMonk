@@ -211,7 +211,8 @@ public class CoreDataUpdate : CoreDataFetch {
         do {
             return try fetch(type, query)
         } catch {
-            if (error as NSError).domain != "CoreDataMonk.NotFound" {
+            let error = error as NSError
+            if error.domain != "CoreDataMonk.NotFound" {
                 throw error
             }
             
@@ -221,29 +222,70 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
+    public func updateAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
+        let meta = try self.metadataForEntityClass(type)
+        let request = NSBatchUpdateRequest(entity: meta.entity)
+        request.affectedStores = [ meta.store ]
+        request.predicate = query?.predicate
+        request.resultType = .UpdatedObjectsCountResultType
+        request.propertiesToUpdate = properties
+
+        let result = try self.managedObjectContext.executeRequest(request) as! NSBatchUpdateResult
+        return (result.result as! NSNumber).integerValue
+    }
+
     public func delete<T: NSManagedObject>(obj: T) throws {
         self.managedObjectContext.deleteObject(obj)
     }
 
     public func delete<T: NSManagedObject>(objs: [T]) throws {
         for obj in objs {
-            try self.delete(obj)
+            self.managedObjectContext.deleteObject(obj)
         }
     }
 
-    public final func deleteAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws {
+    public func delete<T: NSManagedObject>(type: T.Type, id: NSManagedObjectID) throws {
+        let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
+        self.managedObjectContext.deleteObject(obj)
+    }
+
+    public func delete<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws {
+        if #available(iOS 9.0, *) {
+            let request = NSBatchDeleteRequest(objectIDs: ids)
+            try self.managedObjectContext.executeRequest(request)
+        } else {
+            for id in ids {
+                let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
+                self.managedObjectContext.deleteObject(obj)
+            }
+        }
+    }
+
+    public final func deleteAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
         request.fetchLimit = 0
-        request.resultType = .ManagedObjectResultType
-        request.returnsObjectsAsFaults = true
-        request.includesPropertyValues = false
         
-        let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
-        try self.delete(objects)
+        if #available(iOS 9.0, *) {
+            request.resultType = .ManagedObjectIDResultType
+            
+            let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
+            deleteRequest.resultType = .ResultTypeCount
+            
+            let result = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
+            return (result.result as! NSNumber).integerValue
+        } else {
+            request.resultType = .ManagedObjectResultType
+            request.returnsObjectsAsFaults = true
+            request.includesPropertyValues = false
+
+            let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
+            try self.delete(objects)
+            return objects.count
+        }
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {
