@@ -31,38 +31,31 @@ import CoreData
 
 private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
-    private weak var provider: CollectionViewDataProvider<EntityType>?
-    private var pendingActions: [() -> Void] = []
-    private var updatedIndexPaths: Set<NSIndexPath> = []
+    weak var provider: CollectionViewDataProvider<EntityType>?
+    var pendingActions: [() -> Void] = []
+    var updatedIndexPaths: Set<NSIndexPath> = []
+    var isFiltering = false
     
-    private var collectionView: UICollectionView? {
+    var collectionView: UICollectionView? {
         return self.provider?.collectionView
     }
     
-    private var resultsController: NSFetchedResultsController? {
-        return self.provider?.resultsController
-    }
-
-    private init(provider: CollectionViewDataProvider<EntityType>) {
+    init(provider: CollectionViewDataProvider<EntityType>) {
         self.provider = provider
     }
     
     @objc func numberOfSectionsInCollectionView(collectionView: UICollectionView) -> Int {
-        return self.resultsController?.sections?.count ?? 0
+        return self.provider?.numberOfSections() ?? 0
     }
 
     @objc func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        if let sections = self.resultsController?.sections where section < sections.count {
-            return sections[section].numberOfObjects
-        }
-        return 0
+        return self.provider?.numberOfObjectsInSection(section) ?? 0
     }
     
     @objc func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
-        if let object = self.resultsController?.objectAtIndexPath(indexPath) as? EntityType {
-            if let cell = self.provider?.onGetCell?(object, indexPath) {
-                return cell
-            }
+        if let object = self.provider?.objectAtIndexPath(indexPath),
+               cell = self.provider?.onGetCell?(object, indexPath) {
+            return cell
         }
         return UICollectionViewCell()
     }
@@ -77,9 +70,14 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
         self.updatedIndexPaths.removeAll()
+        self.isFiltering = self.provider?.objectFilter != nil
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+        if self.isFiltering {
+            return
+        }
+    
         switch type {
         case .Insert:
             if !self.updatedIndexPaths.contains(newIndexPath!) {
@@ -112,6 +110,10 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
+        if self.isFiltering {
+            return
+        }
+
         switch type {
         case .Insert:
             self.pendingActions.append() {
@@ -135,6 +137,11 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
+        if self.isFiltering {
+            self.provider?.filter()
+            return
+        }
+
         self.collectionView?.performBatchUpdates({
             [weak self] in
             
@@ -155,7 +162,8 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
 
 //---------------------------------------------------------------------------
 
-public class CollectionViewDataProvider<EntityType: NSManagedObject> {
+public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider<EntityType> {
+    public let context: CoreDataMainContext
     private var bridge: CollectionViewDataBridge<EntityType>!
     
     public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell
@@ -164,17 +172,6 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> {
     public var onGetCell: OnGetCellCallback?
     public var onGetSupplementary: OnGetSupplementaryCallback?
     
-    public let context: CoreDataMainContext
-
-    public var resultsController: NSFetchedResultsController? {
-        willSet {
-            self.resultsController?.delegate = nil
-        }
-        didSet {
-            self.resultsController?.delegate = self.bridge
-        }
-    }
-
     public weak var collectionView: UICollectionView? {
         willSet {
             if self.collectionView?.dataSource === self.bridge {
@@ -186,29 +183,35 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> {
         }
     }
 
+    public override var fetchedResultsController: NSFetchedResultsController? {
+        get {
+            return super.fetchedResultsController
+        }
+        set {
+            super.fetchedResultsController?.delegate = nil
+            super.fetchedResultsController = newValue
+            newValue?.delegate = self.bridge
+        }
+    }
+
     public init(context: CoreDataMainContext) {
         self.context = context
+        super.init()
         self.bridge = CollectionViewDataBridge<EntityType>(provider: self)
     }
     
-    public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {
-        return self.resultsController?.objectAtIndexPath(indexPath) as? EntityType
-    }
-    
-    public func indexPathForObject(object: EntityType) -> NSIndexPath? {
-        return self.resultsController?.indexPathForObject(object)
-    }
-    
-    public func bind(collectionView: UICollectionView, onGetCell: OnGetCellCallback) -> CollectionViewDataProvider<EntityType> {
+    public func bind(collectionView: UICollectionView, onGetCell: OnGetCellCallback) {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
-        return self
     }
     
-    public func query(query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> CollectionViewDataProvider<EntityType> {
-        self.resultsController = try self.context.fetchResults(EntityType.self, query, orderBy: orderBy, sectionBy: sectionBy, options: options)
-        try self.resultsController?.performFetch()
+    public func load(query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws {
+        self.fetchedResultsController = try self.context.fetchResults(EntityType.self, query, orderBy: orderBy, sectionBy: sectionBy, options: options)
+        try reload()
+    }
+    
+    public override func filter() {
+        super.filter()
         self.collectionView?.reloadData()
-        return self
     }
 }

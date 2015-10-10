@@ -14,6 +14,7 @@
 		AADF00F61B679790007F7A38 /* CoreDataStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00ED1B679790007F7A38 /* CoreDataStack.swift */; };
 		AADF00F71B679790007F7A38 /* CoreDataUpdateContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */; };
 		AADF00F91B679790007F7A38 /* TableViewDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */; };
+		AAFC591E1BC8DB6E00351A57 /* ViewDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAFC591D1BC8DB6E00351A57 /* ViewDataProvider.swift */; settings = {ASSET_TAGS = (); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CoreDataUpdateContext.swift; sourceTree = "<group>"; };
 		AADF00EF1B679790007F7A38 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TableViewDataProvider.swift; sourceTree = "<group>"; };
+		AAFC591D1BC8DB6E00351A57 /* ViewDataProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ViewDataProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +61,8 @@
 		AADF00E71B679790007F7A38 /* CoreDataMonk */ = {
 			isa = PBXGroup;
 			children = (
+				AAFC591D1BC8DB6E00351A57 /* ViewDataProvider.swift */,
+				AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */,
 				AADF00E81B679790007F7A38 /* CollectionViewDataProvider.swift */,
 				AADF00E91B679790007F7A38 /* CoreDataContext.swift */,
 				AADF00EA1B679790007F7A38 /* CoreDataExpression.swift */,
@@ -66,7 +70,6 @@
 				AADF00EC1B679790007F7A38 /* CoreDataMonk.h */,
 				AADF00ED1B679790007F7A38 /* CoreDataStack.swift */,
 				AADF00EE1B679790007F7A38 /* CoreDataUpdateContext.swift */,
-				AADF00F01B679790007F7A38 /* TableViewDataProvider.swift */,
 				AADF00EF1B679790007F7A38 /* Info.plist */,
 			);
 			path = CoreDataMonk;
@@ -151,6 +154,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AADF00F61B679790007F7A38 /* CoreDataStack.swift in Sources */,
+				AAFC591E1BC8DB6E00351A57 /* ViewDataProvider.swift in Sources */,
 				AADF00F71B679790007F7A38 /* CoreDataUpdateContext.swift in Sources */,
 				AADF00F21B679790007F7A38 /* CoreDataContext.swift in Sources */,
 				AADF00F91B679790007F7A38 /* TableViewDataProvider.swift in Sources */,
