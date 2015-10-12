@@ -170,6 +170,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
         if self.isFiltering {
             self.provider?.filter()
+            self.provider?.onDataChanged?()
             return
         }
 
@@ -180,6 +181,8 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
             self.updatedIndexPaths.removeAll()
             self.tableView?.reloadRowsAtIndexPaths(indexPaths, withRowAnimation: .Automatic)
         }
+        
+        self.provider?.onDataChanged?()
     }
 }
 
@@ -193,11 +196,13 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
     public typealias OnDeleteCellCallbck = (EntityType, NSIndexPath) -> Void
     public typealias OnGetSectionTitle = (String, Int) -> String
     public typealias OnGetIndexTitle = (String) -> String
+    public typealias OnDataChanged = () -> Void
     
     public var onGetCell: OnGetCellCallbck?
     public var onDeleteCell: OnDeleteCellCallbck?
     public var onGetSectionTitle: OnGetSectionTitle?
     public var onGetIndexTitle: OnGetIndexTitle?
+    public var onDataChanged: OnDataChanged?
     
     public weak var tableView: UITableView? {
         willSet {

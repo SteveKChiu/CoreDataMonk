@@ -139,6 +139,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
         if self.isFiltering {
             self.provider?.filter()
+            self.provider?.onDataChanged?()
             return
         }
 
@@ -156,7 +157,11 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
                 self?.updatedIndexPaths.removeAll()
                 self?.collectionView?.reloadItemsAtIndexPaths(Array(indexPaths))
             }
-        }, completion: nil)
+        }, completion: {
+            [weak self] _ in
+            
+            self?.provider?.onDataChanged?()
+        })
     }
 }
 
@@ -168,9 +173,11 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
     
     public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell
     public typealias OnGetSupplementaryCallback = (String, NSIndexPath) -> UICollectionReusableView
+    public typealias OnDataChanged = () -> Void
     
     public var onGetCell: OnGetCellCallback?
     public var onGetSupplementary: OnGetSupplementaryCallback?
+    public var onDataChanged: OnDataChanged?
     
     public weak var collectionView: UICollectionView? {
         willSet {
