@@ -171,8 +171,8 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
     public let context: CoreDataMainContext
     private var bridge: CollectionViewDataBridge<EntityType>!
     
-    public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell
-    public typealias OnGetSupplementaryCallback = (String, NSIndexPath) -> UICollectionReusableView
+    public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell?
+    public typealias OnGetSupplementaryCallback = (String, NSIndexPath) -> UICollectionReusableView?
     public typealias OnDataChanged = () -> Void
     
     public var onGetCell: OnGetCellCallback?

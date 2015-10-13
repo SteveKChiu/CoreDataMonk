@@ -127,7 +127,9 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         
         switch type {
         case .Insert:
-            self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
+            if !self.updatedIndexPaths.contains(newIndexPath!) {
+                self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
+            }
             
         case .Delete:
             self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
@@ -192,7 +194,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
     public let context: CoreDataMainContext
     private var bridge: TableViewDataBridge<EntityType>!
     
-    public typealias OnGetCellCallbck = (EntityType, NSIndexPath) -> UITableViewCell
+    public typealias OnGetCellCallbck = (EntityType, NSIndexPath) -> UITableViewCell?
     public typealias OnDeleteCellCallbck = (EntityType, NSIndexPath) -> Void
     public typealias OnGetSectionTitle = (String, Int) -> String
     public typealias OnGetIndexTitle = (String) -> String
