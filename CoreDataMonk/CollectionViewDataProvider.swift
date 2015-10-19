@@ -34,6 +34,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     weak var provider: CollectionViewDataProvider<EntityType>?
     var pendingActions: [() -> Void] = []
     var updatedIndexPaths: Set<NSIndexPath> = []
+    var shouldReloadData = false
     var isFiltering = false
     
     var collectionView: UICollectionView? {
@@ -70,20 +71,23 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
         self.updatedIndexPaths.removeAll()
+        self.shouldReloadData = false
         self.isFiltering = self.provider?.objectFilter != nil
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
-        if self.isFiltering {
+        if self.isFiltering || self.shouldReloadData {
             return
         }
     
         switch type {
         case .Insert:
-            if !self.updatedIndexPaths.contains(newIndexPath!) {
+            if self.updatedIndexPaths.contains(newIndexPath!) {
+                self.pendingActions.removeAll()
+                self.shouldReloadData = true
+            } else {
                 self.pendingActions.append() {
                     [weak self] in
-
                     self?.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
                 }
             }
@@ -91,7 +95,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         case .Delete:
             self.pendingActions.append() {
                 [weak self] in
-                
                 self?.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
             }
             self.updatedIndexPaths.remove(indexPath!)
@@ -99,7 +102,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         case .Move:
             self.pendingActions.append() {
                 [weak self] in
-                
                 self?.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
             }
             self.updatedIndexPaths.remove(indexPath!)
@@ -110,7 +112,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
-        if self.isFiltering {
+        if self.isFiltering || self.shouldReloadData {
             return
         }
 
@@ -118,7 +120,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         case .Insert:
             self.pendingActions.append() {
                 [weak self] in
-                
                 self?.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
                 self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
@@ -126,7 +127,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         case .Delete:
             self.pendingActions.append() {
                 [weak self] in
-                
                 self?.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
                 self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
@@ -143,23 +143,25 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             return
         }
 
+        if self.shouldReloadData {
+            self.collectionView?.reloadData()
+            return
+        }
+
         self.collectionView?.performBatchUpdates({
             [weak self] in
-            
             if let actions = self?.pendingActions where !actions.isEmpty {
                 self?.pendingActions.removeAll()
                 for action in actions {
                     action()
                 }
             }
-            
             if let indexPaths = self?.updatedIndexPaths where !indexPaths.isEmpty {
                 self?.updatedIndexPaths.removeAll()
                 self?.collectionView?.reloadItemsAtIndexPaths(Array(indexPaths))
             }
         }, completion: {
             [weak self] _ in
-            
             self?.provider?.onDataChanged?()
         })
     }
