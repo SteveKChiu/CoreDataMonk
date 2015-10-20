@@ -36,6 +36,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     var updatedIndexPaths: Set<NSIndexPath> = []
     var shouldReloadData = false
     var isFiltering = false
+    var semaphore: dispatch_semaphore_t
     
     var collectionView: UICollectionView? {
         return self.provider?.collectionView
@@ -43,6 +44,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     init(provider: CollectionViewDataProvider<EntityType>) {
         self.provider = provider
+        self.semaphore = dispatch_semaphore_create(1)
     }
     
     @objc func numberOfSectionsInCollectionView(collectionView: UICollectionView) -> Int {
@@ -143,11 +145,14 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             return
         }
 
-        if self.shouldReloadData {
+        if self.shouldReloadData || self.collectionView?.window == nil {
+            self.pendingActions.removeAll()
+            self.updatedIndexPaths.removeAll()
             self.collectionView?.reloadData()
             return
         }
 
+        dispatch_semaphore_wait(self.semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
         self.collectionView?.performBatchUpdates({
             [weak self] in
             if let actions = self?.pendingActions where !actions.isEmpty {
@@ -162,7 +167,10 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             }
         }, completion: {
             [weak self] _ in
-            self?.provider?.onDataChanged?()
+            if let this = self {
+                this.provider?.onDataChanged?()
+                dispatch_semaphore_signal(this.semaphore)
+            }
         })
     }
 }
