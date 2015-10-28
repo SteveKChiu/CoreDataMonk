@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "CoreDataMonk"
-  s.version      = "0.9.6"
+  s.version      = "0.9.7"
 
   s.summary      = "A flexible and easy-to-use CoreData library for Swift"
   s.description  = <<-DESC

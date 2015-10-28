@@ -152,7 +152,8 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             return
         }
 
-        dispatch_semaphore_wait(self.semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
+        let semaphore = self.semaphore
+        dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
         self.collectionView?.performBatchUpdates({
             [weak self] in
             if let actions = self?.pendingActions where !actions.isEmpty {
@@ -167,10 +168,8 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             }
         }, completion: {
             [weak self] _ in
-            if let this = self {
-                this.provider?.onDataChanged?()
-                dispatch_semaphore_signal(this.semaphore)
-            }
+            self?.provider?.onDataChanged?()
+            dispatch_semaphore_signal(semaphore)
         })
     }
 }
