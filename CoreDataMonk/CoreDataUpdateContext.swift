@@ -253,6 +253,7 @@ public class CoreDataUpdate : CoreDataFetch {
         if #available(iOS 9.0, *) {
             let request = NSBatchDeleteRequest(objectIDs: ids)
             try self.managedObjectContext.executeRequest(request)
+            self.managedObjectContext.refreshAllObjects()
         } else {
             for id in ids {
                 let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
@@ -267,25 +268,25 @@ public class CoreDataUpdate : CoreDataFetch {
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        request.fetchLimit = 0
         
         if #available(iOS 9.0, *) {
-            request.resultType = .ManagedObjectIDResultType
-            
             let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
             deleteRequest.resultType = .ResultTypeCount
+            deleteRequest.affectedStores = [ meta.store ]
             
-            let result = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
-            return (result.result as! NSNumber).integerValue
-        } else {
-            request.resultType = .ManagedObjectResultType
-            request.returnsObjectsAsFaults = true
-            request.includesPropertyValues = false
-
-            let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
-            try self.delete(objects)
-            return objects.count
+            let r = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
+            let count = r.result as! Int
+            self.managedObjectContext.refreshAllObjects()
+            return count
         }
+        
+        request.resultType = .ManagedObjectResultType
+        request.returnsObjectsAsFaults = true
+        request.includesPropertyValues = false
+
+        let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
+        try self.delete(objects)
+        return objects.count
     }
     
     public func perform(block: (CoreDataUpdate) throws -> Void) {
