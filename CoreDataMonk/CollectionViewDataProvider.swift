@@ -152,9 +152,15 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             return
         }
 
+        guard let collectionView = self.collectionView else {
+            return
+        }
+
+        // make sure batch update animation is not overlapped
         let semaphore = self.semaphore
         dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
-        self.collectionView?.performBatchUpdates({
+
+        collectionView.performBatchUpdates({
             [weak self] in
             if let actions = self?.pendingActions where !actions.isEmpty {
                 self?.pendingActions.removeAll()
