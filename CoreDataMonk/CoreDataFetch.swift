@@ -167,4 +167,16 @@ public extension CoreDataFetch {
         
         return try self.managedObjectContext.executeFetchRequest(request) as! [[String: AnyObject]]
     }
+    
+    @available(iOS 8.3, *)
+    public func refreshAll() {
+        self.managedObjectContext.refreshAllObjects()
+        var moc: NSManagedObjectContext! = self.managedObjectContext.parentContext
+        while moc != nil {
+            moc.performBlock() {
+                moc.refreshAllObjects()
+            }
+            moc = moc.parentContext
+        }
+    }
 }
