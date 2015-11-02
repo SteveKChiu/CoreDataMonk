@@ -222,18 +222,6 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
-    public func updateAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
-        let meta = try self.metadataForEntityClass(type)
-        let request = NSBatchUpdateRequest(entity: meta.entity)
-        request.affectedStores = [ meta.store ]
-        request.predicate = query?.predicate
-        request.resultType = .UpdatedObjectsCountResultType
-        request.propertiesToUpdate = properties
-
-        let result = try self.managedObjectContext.executeRequest(request) as! NSBatchUpdateResult
-        return (result.result as! NSNumber).integerValue
-    }
-
     public func delete<T: NSManagedObject>(obj: T) throws {
         self.managedObjectContext.deleteObject(obj)
     }
@@ -250,15 +238,9 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     public func delete<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws {
-        if #available(iOS 9.0, *) {
-            let request = NSBatchDeleteRequest(objectIDs: ids)
-            try self.managedObjectContext.executeRequest(request)
-            self.managedObjectContext.refreshAllObjects()
-        } else {
-            for id in ids {
-                let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
-                self.managedObjectContext.deleteObject(obj)
-            }
+        for id in ids {
+            let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
+            self.managedObjectContext.deleteObject(obj)
         }
     }
 
@@ -268,18 +250,6 @@ public class CoreDataUpdate : CoreDataFetch {
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        
-        if #available(iOS 9.0, *) {
-            let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
-            deleteRequest.resultType = .ResultTypeCount
-            deleteRequest.affectedStores = [ meta.store ]
-            
-            let r = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
-            let count = r.result as! Int
-            self.managedObjectContext.refreshAllObjects()
-            return count
-        }
-        
         request.resultType = .ManagedObjectResultType
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
@@ -289,6 +259,43 @@ public class CoreDataUpdate : CoreDataFetch {
         return objects.count
     }
     
+    public func batchUpdate<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
+        let meta = try self.metadataForEntityClass(type)
+        let request = NSBatchUpdateRequest(entity: meta.entity)
+        request.affectedStores = [ meta.store ]
+        request.predicate = query?.predicate
+        request.resultType = .UpdatedObjectsCountResultType
+        request.propertiesToUpdate = properties
+
+        let result = try self.managedObjectContext.executeRequest(request) as! NSBatchUpdateResult
+        return result.result as! Int
+    }
+
+    @available(iOS 9.0, *)
+    public func batchDelete<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws {
+        let request = NSBatchDeleteRequest(objectIDs: ids)
+        try self.managedObjectContext.executeRequest(request)
+        self.refreshAll()
+    }
+
+    @available(iOS 9.0, *)
+    public func batchDelete<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
+        let meta = try self.metadataForEntityClass(type)
+        let request = NSFetchRequest()
+        request.entity = meta.entity
+        request.affectedStores = [ meta.store ]
+        request.predicate = query?.predicate
+        
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
+        deleteRequest.resultType = .ResultTypeCount
+        deleteRequest.affectedStores = [ meta.store ]
+        
+        let r = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
+        let count = r.result as! Int
+        self.refreshAll()
+        return count
+    }
+
     public func perform(block: (CoreDataUpdate) throws -> Void) {
         self.managedObjectContext.performBlock() {
             do {
