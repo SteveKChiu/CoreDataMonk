@@ -194,14 +194,14 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
     public let context: CoreDataMainContext
     private var bridge: TableViewDataBridge<EntityType>!
     
-    public typealias OnGetCellCallbck = (EntityType, NSIndexPath) -> UITableViewCell?
-    public typealias OnDeleteCellCallbck = (EntityType, NSIndexPath) -> Void
+    public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UITableViewCell?
+    public typealias OnDeleteCellCallback = (EntityType, NSIndexPath) -> Void
     public typealias OnGetSectionTitle = (String, Int) -> String
     public typealias OnGetIndexTitle = (String) -> String
     public typealias OnDataChanged = () -> Void
     
-    public var onGetCell: OnGetCellCallbck?
-    public var onDeleteCell: OnDeleteCellCallbck?
+    public var onGetCell: OnGetCellCallback?
+    public var onDeleteCell: OnDeleteCellCallback?
     public var onGetSectionTitle: OnGetSectionTitle?
     public var onGetIndexTitle: OnGetIndexTitle?
     public var onDataChanged: OnDataChanged?
@@ -234,7 +234,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         self.bridge = TableViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(tableView: UITableView, onGetCell: OnGetCellCallbck) {
+    public func bind(tableView: UITableView, onGetCell: OnGetCellCallback) {
         self.onGetCell = onGetCell
         self.tableView = tableView
     }
