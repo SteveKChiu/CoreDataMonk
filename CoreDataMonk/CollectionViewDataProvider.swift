@@ -187,12 +187,12 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
     public let context: CoreDataMainContext
     private var bridge: CollectionViewDataBridge<EntityType>!
     
-    public typealias OnGetCellCallback = (EntityType, NSIndexPath) -> UICollectionViewCell?
-    public typealias OnGetSupplementaryCallback = (String, NSIndexPath) -> UICollectionReusableView?
+    public typealias OnGetCell = (EntityType, NSIndexPath) -> UICollectionViewCell?
+    public typealias OnGetSupplementary = (String, NSIndexPath) -> UICollectionReusableView?
     public typealias OnDataChanged = () -> Void
     
-    public var onGetCell: OnGetCellCallback?
-    public var onGetSupplementary: OnGetSupplementaryCallback?
+    public var onGetCell: OnGetCell?
+    public var onGetSupplementary: OnGetSupplementary?
     public var onDataChanged: OnDataChanged?
     
     public weak var collectionView: UICollectionView? {
@@ -223,7 +223,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         self.bridge = CollectionViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(collectionView: UICollectionView, onGetCell: OnGetCellCallback) {
+    public func bind(collectionView: UICollectionView, onGetCell: OnGetCell) {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
     }
