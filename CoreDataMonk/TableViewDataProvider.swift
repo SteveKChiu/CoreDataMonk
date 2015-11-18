@@ -98,22 +98,6 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         }
     }
     
-    @objc func tableView(tableView: UITableView, canEditRowAtIndexPath indexPath: NSIndexPath) -> Bool {
-        if self.provider?.onDeleteCell != nil {
-            return self.provider?.onCanDeleteCell?(indexPath) ?? true
-        }
-        return false
-    }
-
-    @objc func tableView(tableView: UITableView, commitEditingStyle editingStyle: UITableViewCellEditingStyle, forRowAtIndexPath indexPath: NSIndexPath) {
-        if editingStyle == .Delete {
-            if let onDeleteCell = self.provider?.onDeleteCell,
-                   object = self.provider?.objectAtIndexPath(indexPath) {
-                onDeleteCell(object, indexPath)
-            }
-        }
-    }
-    
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.updatedIndexPaths.removeAll()
         self.isFiltering = self.provider?.objectFilter != nil
@@ -198,15 +182,11 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
     private var bridge: TableViewDataBridge<EntityType>!
     
     public typealias OnGetCell = (EntityType, NSIndexPath) -> UITableViewCell?
-    public typealias OnCanDeleteCell = (NSIndexPath) -> Bool
-    public typealias OnDeleteCell = (EntityType, NSIndexPath) -> Void
     public typealias OnGetSectionTitle = (String, Int) -> String
     public typealias OnGetIndexTitle = (String) -> String
     public typealias OnDataChanged = () -> Void
     
     public var onGetCell: OnGetCell?
-    public var onCanDeleteCell: OnCanDeleteCell?
-    public var onDeleteCell: OnDeleteCell?
     public var onGetSectionTitle: OnGetSectionTitle?
     public var onGetIndexTitle: OnGetIndexTitle?
     public var onDataChanged: OnDataChanged?
