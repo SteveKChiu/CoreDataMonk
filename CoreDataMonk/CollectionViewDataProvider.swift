@@ -149,6 +149,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             self.pendingActions.removeAll()
             self.updatedIndexPaths.removeAll()
             self.collectionView?.reloadData()
+            self.provider?.onDataChanged?()
             return
         }
 
