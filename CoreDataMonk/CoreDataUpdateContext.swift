@@ -259,12 +259,13 @@ public class CoreDataUpdate : CoreDataFetch {
         return objects.count
     }
     
+    @available(iOS 9.0, *)
     public func batchUpdate<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
         let request = NSBatchUpdateRequest(entity: meta.entity)
+        request.resultType = .UpdatedObjectsCountResultType
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        request.resultType = .UpdatedObjectsCountResultType
         request.propertiesToUpdate = properties
 
         let result = try self.managedObjectContext.executeRequest(request) as! NSBatchUpdateResult
