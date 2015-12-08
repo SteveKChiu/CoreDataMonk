@@ -70,6 +70,20 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         return UICollectionReusableView()
     }
     
+    private func ensureIndexPath(indexPath: NSIndexPath) -> Bool {
+        if self.isFiltering || self.shouldReloadData {
+            return false
+        } else if !self.updatedIndexPaths.contains(indexPath) {
+            self.updatedIndexPaths.removeAll()
+            self.pendingActions.removeAll()
+            self.shouldReloadData = true
+            return false
+        } else {
+            self.updatedIndexPaths.insert(indexPath)
+            return true
+        }
+    }
+    
     @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
         self.pendingActions.removeAll()
         self.updatedIndexPaths.removeAll()
@@ -78,16 +92,9 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     }
 
     @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
-        if self.isFiltering || self.shouldReloadData {
-            return
-        }
-    
         switch type {
         case .Insert:
-            if self.updatedIndexPaths.contains(newIndexPath!) {
-                self.pendingActions.removeAll()
-                self.shouldReloadData = true
-            } else {
+            if ensureIndexPath(newIndexPath!) {
                 self.pendingActions.append() {
                     [weak self] in
                     self?.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
@@ -95,21 +102,28 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
             }
             
         case .Delete:
-            self.pendingActions.append() {
-                [weak self] in
-                self?.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
+            if ensureIndexPath(indexPath!) {
+                self.pendingActions.append() {
+                    [weak self] in
+                    self?.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
+                }
             }
-            self.updatedIndexPaths.remove(indexPath!)
             
         case .Move:
-            self.pendingActions.append() {
-                [weak self] in
-                self?.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
+            if ensureIndexPath(indexPath!) && ensureIndexPath(newIndexPath!) {
+                self.pendingActions.append() {
+                    [weak self] in
+                    self?.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
+                }
             }
-            self.updatedIndexPaths.remove(indexPath!)
             
         case .Update:
-            self.updatedIndexPaths.insert(indexPath!)
+            if ensureIndexPath(indexPath!) {
+                self.pendingActions.append() {
+                    [weak self] in
+                    self?.collectionView?.reloadItemsAtIndexPaths([ indexPath! ])
+                }
+            }
         }
     }
     
@@ -160,6 +174,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         // make sure batch update animation is not overlapped
         let semaphore = self.semaphore
         dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
+        self.updatedIndexPaths.removeAll()
 
         collectionView.performBatchUpdates({
             [weak self] in
@@ -168,10 +183,6 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
                 for action in actions {
                     action()
                 }
-            }
-            if let indexPaths = self?.updatedIndexPaths where !indexPaths.isEmpty {
-                self?.updatedIndexPaths.removeAll()
-                self?.collectionView?.reloadItemsAtIndexPaths(Array(indexPaths))
             }
         }, completion: {
             [weak self] _ in
