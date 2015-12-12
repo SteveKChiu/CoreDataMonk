@@ -73,7 +73,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     private func ensureIndexPath(indexPath: NSIndexPath) -> Bool {
         if self.isFiltering || self.shouldReloadData {
             return false
-        } else if !self.updatedIndexPaths.contains(indexPath) {
+        } else if self.updatedIndexPaths.contains(indexPath) {
             self.updatedIndexPaths.removeAll()
             self.pendingActions.removeAll()
             self.shouldReloadData = true
