@@ -101,7 +101,7 @@ public class CoreDataStack {
             fileURL = directory.URLByAppendingPathComponent(fileName + ".sqlite")
         }
     
-        if let store = coordinator.persistentStoreForURL(fileURL) {
+        if let store = self.coordinator.persistentStoreForURL(fileURL) {
             if store.type == NSSQLiteStoreType
                     && autoMigrating == (store.options?[NSMigratePersistentStoresAutomaticallyOption] as? Bool)
                     && store.configurationName == (configuration ?? "PF_DEFAULT_CONFIGURATION_NAME") {
@@ -113,26 +113,18 @@ public class CoreDataStack {
         }
         
         let fileManager = NSFileManager.defaultManager()
-        do {
-            try fileManager.createDirectoryAtURL(fileURL.URLByDeletingLastPathComponent!, withIntermediateDirectories: true, attributes: nil)
-        } catch {
-            // ignore
-        }
+        _ = try? fileManager.createDirectoryAtURL(fileURL.URLByDeletingLastPathComponent!, withIntermediateDirectories: true, attributes: nil)
         
         var retried = false
+        let options: [NSObject : AnyObject] = [
+            NSSQLitePragmasOption: ["journal_mode": "WAL"],
+            NSInferMappingModelAutomaticallyOption: true,
+            NSMigratePersistentStoresAutomaticallyOption: autoMigrating
+        ]
+        
         while true {
             do {
-                let store = try coordinator.addPersistentStoreWithType(
-                    NSSQLiteStoreType,
-                    configuration: configuration,
-                    URL: fileURL,
-                    options: [
-                        NSSQLitePragmasOption: ["journal_mode": "WAL"],
-                        NSInferMappingModelAutomaticallyOption: true,
-                        NSMigratePersistentStoresAutomaticallyOption: autoMigrating
-                    ]
-                )
-            
+                let store = try self.coordinator.addPersistentStoreWithType(NSSQLiteStoreType, configuration: configuration, URL: fileURL, options: options)
                 try updateMetadata(store)
                 return
             } catch {
@@ -147,9 +139,13 @@ public class CoreDataStack {
                     throw error
                 }
                 
-                let path = fileURL.path!
-                for file in [ path, path + "-shm", path + "-wal"] {
-                    _ = try? fileManager.removeItemAtPath(file)
+                if #available(iOS 9.0, *) {
+                    _ = try? self.coordinator.destroyPersistentStoreAtURL(fileURL, withType: NSSQLiteStoreType, options: options)
+                } else {
+                    let path = fileURL.path!
+                    for file in [ path, path + "-shm", path + "-wal"] {
+                        _ = try? fileManager.removeItemAtPath(file)
+                    }
                 }
                 
                 retried = true
@@ -162,7 +158,7 @@ public class CoreDataStack {
     private func updateMetadata(store: NSPersistentStore) throws {
         if let entities = self.coordinator.managedObjectModel.entitiesForConfiguration(store.configurationName) {
             for entity in entities {
-                if let meta = self.metadata[entity.managedObjectClassName] {
+                if let meta = self.metadata[entity.managedObjectClassName] where meta.entity != entity && meta.store != store {
                     throw CoreDataError("Class \(entity.managedObjectClassName) has been mapped to \(meta.entity.name!), and can not be mapped to \(entity.name!), one class can only map to one entity")
                 }
                 self.metadata[entity.managedObjectClassName] = (entity: entity, store: store)
