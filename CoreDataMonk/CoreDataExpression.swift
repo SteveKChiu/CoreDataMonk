@@ -374,8 +374,16 @@ public struct CoreDataOrderBy {
         return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: true))
     }
     
+    public static func Ascending(key: String, selector: Selector) -> CoreDataOrderBy {
+        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: true, selector: selector))
+    }
+    
     public static func Descending(key: String) -> CoreDataOrderBy {
         return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: false))
+    }
+
+    public static func Descending(key: String, selector: Selector) -> CoreDataOrderBy {
+        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: false, selector: selector))
     }
 
     public static func Sort(descriptor: NSSortDescriptor) -> CoreDataOrderBy {
