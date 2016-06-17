@@ -32,14 +32,14 @@ import CoreData
 private class TableViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UITableViewDataSource, NSFetchedResultsControllerDelegate {
     weak var provider: TableViewDataProvider<EntityType>?
-    var updatedIndexPaths: Set<NSIndexPath> = []
+    var updatedIndexPaths: Set<IndexPath> = []
     var isFiltering = false
     
     var tableView: UITableView? {
         return self.provider?.tableView
     }
     
-    var controller: NSFetchedResultsController? {
+    var controller: NSFetchedResultsController<EntityType>? {
         return self.provider?.fetchedResultsController
     }
 
@@ -47,15 +47,15 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         self.provider = provider
     }
     
-    @objc func numberOfSectionsInTableView(tableView: UITableView) -> Int {
+    @objc func numberOfSections(in tableView: UITableView) -> Int {
         return self.provider?.numberOfSections() ?? 0
     }
 
-    @objc func tableView(tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+    @objc func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return self.provider?.numberOfObjectsInSection(section) ?? 0
     }
     
-    @objc func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
+    @objc func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if let object = self.provider?.objectAtIndexPath(indexPath),
                cell = self.provider?.onGetCell?(object, indexPath) {
             return cell
@@ -63,7 +63,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         return UITableViewCell()
     }
     
-    @objc func tableView(tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+    @objc func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
         if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
             if let onGetSectionTitle = self.provider?.onGetSectionTitle where section < sectionCount {
                 return onGetSectionTitle("", section)
@@ -82,7 +82,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         return nil
     }
     
-    @objc func sectionIndexTitlesForTableView(tableView: UITableView) -> [String]? {
+    @objc func sectionIndexTitles(for tableView: UITableView) -> [String]? {
         if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
             return nil
         } else {
@@ -90,15 +90,15 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         }
     }
     
-    @objc func tableView(tableView: UITableView, sectionForSectionIndexTitle title: String, atIndex index: Int) -> Int {
+    @objc func tableView(_ tableView: UITableView, sectionForSectionIndexTitle title: String, at index: Int) -> Int {
         if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
             return 0
         } else {
-            return self.controller?.sectionForSectionIndexTitle(title, atIndex: index) ?? 0
+            return self.controller?.section(forSectionIndexTitle: title, at: index) ?? 0
         }
     }
     
-    @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
+    @objc func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         self.updatedIndexPaths.removeAll()
         self.isFiltering = self.provider?.objectFilter != nil
         
@@ -107,56 +107,56 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         }
     }
 
-    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: AnyObject, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         if self.isFiltering {
             return
         }
         
         switch type {
-        case .Insert:
+        case .insert:
             if !self.updatedIndexPaths.contains(newIndexPath!) {
-                self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
+                self.tableView?.insertRows(at: [ newIndexPath! ], with: .automatic)
             }
             
-        case .Delete:
-            self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
+        case .delete:
+            self.tableView?.deleteRows(at: [ indexPath! ], with: .automatic)
             self.updatedIndexPaths.remove(indexPath!)
             
-        case .Move:
-            self.tableView?.deleteRowsAtIndexPaths([ indexPath! ], withRowAnimation: .Automatic)
-            self.tableView?.insertRowsAtIndexPaths([ newIndexPath! ], withRowAnimation: .Automatic)
+        case .move:
+            self.tableView?.deleteRows(at: [ indexPath! ], with: .automatic)
+            self.tableView?.insertRows(at: [ newIndexPath! ], with: .automatic)
             self.updatedIndexPaths.remove(indexPath!)
             
-        case .Update:
+        case .update:
             self.updatedIndexPaths.insert(indexPath!)
         }
     }
     
-    @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange sectionInfo: NSFetchedResultsSectionInfo, atSectionIndex sectionIndex: Int, for type: NSFetchedResultsChangeType) {
         if self.isFiltering {
             return
         }
 
         switch type {
-        case .Insert:
-            self.tableView?.insertSections(NSIndexSet(index: sectionIndex), withRowAnimation: .Automatic)
+        case .insert:
+            self.tableView?.insertSections(IndexSet(integer: sectionIndex), with: .automatic)
             
-        case .Delete:
-            self.tableView?.deleteSections(NSIndexSet(index: sectionIndex), withRowAnimation: .Automatic)
+        case .delete:
+            self.tableView?.deleteSections(IndexSet(integer: sectionIndex), with: .automatic)
             
         default:
             break
         }
     }
     
-    @objc func controller(controller: NSFetchedResultsController, sectionIndexTitleForSectionName sectionName: String) -> String? {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, sectionIndexTitleForSectionName sectionName: String) -> String? {
         if let onGetIndexTitle = self.provider?.onGetIndexTitle {
             return onGetIndexTitle(sectionName)
         }
         return sectionName
     }
 
-    @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
+    @objc func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         if self.isFiltering {
             self.provider?.filter()
             self.provider?.onDataChanged?()
@@ -168,7 +168,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         if !self.updatedIndexPaths.isEmpty {
             let indexPaths = Array(self.updatedIndexPaths)
             self.updatedIndexPaths.removeAll()
-            self.tableView?.reloadRowsAtIndexPaths(indexPaths, withRowAnimation: .Automatic)
+            self.tableView?.reloadRows(at: indexPaths, with: .automatic)
         }
         
         self.provider?.onDataChanged?()
@@ -181,7 +181,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
     public let context: CoreDataMainContext
     private var bridge: TableViewDataBridge<EntityType>!
     
-    public typealias OnGetCell = (EntityType, NSIndexPath) -> UITableViewCell?
+    public typealias OnGetCell = (EntityType, IndexPath) -> UITableViewCell?
     public typealias OnGetSectionTitle = (String, Int) -> String
     public typealias OnGetIndexTitle = (String) -> String
     public typealias OnDataChanged = () -> Void
@@ -202,7 +202,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         }
     }
 
-    public override var fetchedResultsController: NSFetchedResultsController? {
+    public override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return super.fetchedResultsController
         }
@@ -219,12 +219,12 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         self.bridge = TableViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(tableView: UITableView, onGetCell: OnGetCell) {
+    public func bind(_ tableView: UITableView, onGetCell: OnGetCell) {
         self.onGetCell = onGetCell
         self.tableView = tableView
     }
     
-    public func load(query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws {
+    public func load(_ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws {
         self.fetchedResultsController = try self.context.fetchResults(EntityType.self, query, orderBy: orderBy, sectionBy: sectionBy, options: options)
         try reload()
     }

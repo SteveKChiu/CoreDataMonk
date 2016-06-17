@@ -30,13 +30,13 @@ import CoreData
 //---------------------------------------------------------------------------
 
 public class ViewDataProvider<EntityType: NSManagedObject> {
-    private var controller: NSFetchedResultsController?
+    private var controller: NSFetchedResultsController<EntityType>?
     private var filteredSections: [[EntityType]]?
     
     public typealias ObjectFilter = ([[EntityType]]) -> [[EntityType]]
     public var objectFilter: ObjectFilter?
     
-    public var fetchedResultsController: NSFetchedResultsController? {
+    public var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return self.controller
         }
@@ -53,7 +53,7 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         }
     }
     
-    public func numberOfObjectsInSection(section: Int) -> Int {
+    public func numberOfObjectsInSection(_ section: Int) -> Int {
         if let sections = self.filteredSections {
             if section < sections.count {
                 return sections[section].count
@@ -66,32 +66,32 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         return 0
     }
     
-    public func objectAtIndexPath(indexPath: NSIndexPath) -> EntityType? {
+    public func objectAtIndexPath(_ indexPath: IndexPath) -> EntityType? {
         if let sections = self.filteredSections {
-            if indexPath.section < sections.count {
-                let objects = sections[indexPath.section]
-                if indexPath.item < objects.count {
-                    return objects[indexPath.item]
+            if (indexPath as NSIndexPath).section < sections.count {
+                let objects = sections[(indexPath as NSIndexPath).section]
+                if (indexPath as NSIndexPath).item < objects.count {
+                    return objects[(indexPath as NSIndexPath).item]
                 }
             }
             return nil
         } else {
-            return self.controller?.objectAtIndexPath(indexPath) as? EntityType
+            return self.controller?.object(at: indexPath)
         }
     }
 
-    public func indexPathForObject(object: EntityType) -> NSIndexPath? {
+    public func indexPathForObject(_ object: EntityType) -> IndexPath? {
         if let sections = self.filteredSections {
-            for (sidx, section) in sections.enumerate() {
-                for (idx, item) in section.enumerate() {
+            for (sidx, section) in sections.enumerated() {
+                for (idx, item) in section.enumerated() {
                     if item == object {
-                        return NSIndexPath(forItem: idx, inSection: sidx)
+                        return IndexPath(item: idx, section: sidx)
                     }
                 }
             }
             return nil
         } else {
-            return self.controller?.indexPathForObject(object)
+            return self.controller?.indexPath(forObject: object)
         }
     }
 

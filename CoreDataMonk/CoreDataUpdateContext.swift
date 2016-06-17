@@ -43,28 +43,28 @@ public class CoreDataUpdateContext {
         return self.context
     }
 
-    public final func handleError(error: ErrorType) {
+    public final func handleError(_ error: ErrorProtocol) {
         self.origin.stack.handleError(error)
     }
     
-    public func perform(block: (CoreDataUpdate) throws -> Void) {
+    public func perform(_ block: (CoreDataUpdate) throws -> Void) {
         if let queue = self.origin.updateQueue {
-            dispatch_async(queue) {
-                let group = dispatch_group_create()
-                dispatch_group_enter(group)
-                self.context.performBlock() {
+            queue.async {
+                let group = DispatchGroup()
+                group.enter()
+                self.context.perform() {
                     let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
                     } catch {
                         self.handleError(error)
                     }
-                    dispatch_group_leave(group)
+                    group.leave()
                 }
-                dispatch_group_wait(group, DISPATCH_TIME_FOREVER)
+                _ = group.wait(timeout: DispatchTime.distantFuture)
             }
         } else {
-            self.context.performBlock() {
+            self.context.perform() {
                 let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
@@ -75,24 +75,24 @@ public class CoreDataUpdateContext {
         }
     }
 
-    public func performAndWait(block: (CoreDataUpdate) throws -> Void) {
+    public func performAndWait(_ block: (CoreDataUpdate) throws -> Void) {
         if let queue = self.origin.updateQueue {
-            dispatch_sync(queue) {
-                let group = dispatch_group_create()
-                dispatch_group_enter(group)
-                self.context.performBlock() {
+            queue.sync {
+                let group = DispatchGroup()
+                group.enter()
+                self.context.perform() {
                     let update = CoreDataUpdate(context: self, group: group)
                     do {
                         try block(update)
                     } catch {
                         self.handleError(error)
                     }
-                    dispatch_group_leave(group)
+                    group.leave()
                 }
-                dispatch_group_wait(group, DISPATCH_TIME_FOREVER)
+                _ = group.wait(timeout: DispatchTime.distantFuture)
             }
         } else {
-            self.context.performBlockAndWait() {
+            self.context.performAndWait() {
                 let update = CoreDataUpdate(context: self, group: nil)
                 do {
                     try block(update)
@@ -105,11 +105,11 @@ public class CoreDataUpdateContext {
     
     public func wait() {
         if let queue = self.origin.updateQueue {
-            dispatch_sync(queue) {
+            queue.sync {
                 // do nothing
             }
         } else {
-            self.context.performBlockAndWait() {
+            self.context.performAndWait() {
                 // do nothing
             }
         }
@@ -136,20 +136,20 @@ public class CoreDataUpdateContext {
 
 public class CoreDataUpdate : CoreDataFetch {
     public let context: CoreDataUpdateContext
-    let group: dispatch_group_t?
+    let group: DispatchGroup?
     
-    init(context: CoreDataUpdateContext, group: dispatch_group_t?) {
+    init(context: CoreDataUpdateContext, group: DispatchGroup?) {
         self.context = context
         self.group = group
 
         if let group = self.group {
-            dispatch_group_enter(group)
+            group.enter()
         }
     }
     
     deinit {
         if let group = self.group {
-            dispatch_group_leave(group)
+            group.leave()
         }
     }
 
@@ -157,33 +157,33 @@ public class CoreDataUpdate : CoreDataFetch {
         return self.context.context
     }
     
-    public final func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    public final func metadataForEntityClass(_ type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         return try self.context.origin.metadataForEntityClass(type)
     }
 
-    public func create<T: NSManagedObject>(type: T.Type) throws -> T {
+    public func create<T: NSManagedObject>(_ type: T.Type) throws -> T {
         let meta = try self.metadataForEntityClass(type)
-        let obj = T(entity: meta.entity, insertIntoManagedObjectContext: self.managedObjectContext)
-        self.managedObjectContext.assignObject(obj, toPersistentStore: meta.store)
+        let obj = T(entity: meta.entity, insertInto: self.managedObjectContext)
+        self.managedObjectContext.assign(obj, to: meta.store)
         return obj
     }
 
-    private func applyProperties(obj: NSManagedObject, predicate: NSPredicate) throws {
-        if let comp = predicate as? NSComparisonPredicate {
-            guard comp.predicateOperatorType == .EqualToPredicateOperatorType else {
+    private func applyProperties(_ obj: NSManagedObject, predicate: Predicate) throws {
+        if let comp = predicate as? ComparisonPredicate {
+            guard comp.predicateOperatorType == .equalTo else {
                 throw CoreDataError("fetchOrCreate: only == and && are supported")
             }
             
-            guard comp.leftExpression.expressionType == .KeyPathExpressionType else {
+            guard comp.leftExpression.expressionType == .keyPath else {
                 throw CoreDataError("fetchOrCreate: left hand side of == must be key path")
             }
             
             switch comp.rightExpression.expressionType {
-            case .KeyPathExpressionType:
-                let value = obj.valueForKeyPath(comp.rightExpression.keyPath)
+            case .keyPath:
+                let value = obj.value(forKeyPath: comp.rightExpression.keyPath)
                 obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
                 
-            case .ConstantValueExpressionType:
+            case .constantValue:
                 var value: AnyObject? = comp.rightExpression.constantValue
                 value = value is NSNull ? nil : value
                 obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
@@ -194,20 +194,20 @@ public class CoreDataUpdate : CoreDataFetch {
             return
         }
         
-        if let comp = predicate as? NSCompoundPredicate {
-            guard comp.compoundPredicateType == .AndPredicateType else {
+        if let comp = predicate as? CompoundPredicate {
+            guard comp.compoundPredicateType == .and else {
                 throw CoreDataError("fetchOrCreate: only == and && are supported")
             }
             
-            try applyProperties(obj, predicate: comp.subpredicates[0] as! NSPredicate)
-            try applyProperties(obj, predicate: comp.subpredicates[1] as! NSPredicate)
+            try applyProperties(obj, predicate: comp.subpredicates[0] as! Predicate)
+            try applyProperties(obj, predicate: comp.subpredicates[1] as! Predicate)
             return
         }
         
         throw CoreDataError("Only == and && are supported in fetchOrCreate")
     }
 
-    public func fetchOrCreate<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery) throws -> T {
+    public func fetchOrCreate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery) throws -> T {
         do {
             return try fetch(type, query)
         } catch {
@@ -222,83 +222,83 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
-    public func delete<T: NSManagedObject>(obj: T) throws {
-        self.managedObjectContext.deleteObject(obj)
+    public func delete<T: NSManagedObject>(_ obj: T) throws {
+        self.managedObjectContext.delete(obj)
     }
 
-    public func delete<T: NSManagedObject>(objs: [T]) throws {
+    public func delete<T: NSManagedObject>(_ objs: [T]) throws {
         for obj in objs {
-            self.managedObjectContext.deleteObject(obj)
+            self.managedObjectContext.delete(obj)
         }
     }
 
-    public func delete<T: NSManagedObject>(type: T.Type, id: NSManagedObjectID) throws {
-        let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
-        self.managedObjectContext.deleteObject(obj)
+    public func delete<T: NSManagedObject>(_ type: T.Type, id: NSManagedObjectID) throws {
+        let obj = try self.managedObjectContext.existingObject(with: id) as! T
+        self.managedObjectContext.delete(obj)
     }
 
-    public func delete<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws {
+    public func delete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
         for id in ids {
-            let obj = try self.managedObjectContext.existingObjectWithID(id) as! T
-            self.managedObjectContext.deleteObject(obj)
+            let obj = try self.managedObjectContext.existingObject(with: id) as! T
+            self.managedObjectContext.delete(obj)
         }
     }
 
-    public final func deleteAll<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
+    public final func deleteAll<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        request.resultType = .ManagedObjectResultType
+        request.resultType = NSFetchRequestResultType()
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
 
-        let objects = try self.managedObjectContext.executeFetchRequest(request) as! [T]
+        let objects = try self.managedObjectContext.fetch(request)
         try self.delete(objects)
         return objects.count
     }
     
     @available(iOS 9.0, *)
-    public func batchUpdate<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
+    public func batchUpdate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
         let request = NSBatchUpdateRequest(entity: meta.entity)
-        request.resultType = .UpdatedObjectsCountResultType
+        request.resultType = .updatedObjectsCountResultType
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
         request.propertiesToUpdate = properties
 
-        let result = try self.managedObjectContext.executeRequest(request) as! NSBatchUpdateResult
+        let result = try self.managedObjectContext.execute(request) as! NSBatchUpdateResult
         return result.result as! Int
     }
 
     @available(iOS 9.0, *)
-    public func batchDelete<T: NSManagedObject>(type: T.Type, ids: [NSManagedObjectID]) throws {
+    public func batchDelete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
         let request = NSBatchDeleteRequest(objectIDs: ids)
-        try self.managedObjectContext.executeRequest(request)
+        try self.managedObjectContext.execute(request)
         self.refreshAll()
     }
 
     @available(iOS 9.0, *)
-    public func batchDelete<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
+    public func batchDelete<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest()
+        let request = NSFetchRequest<NSFetchRequestResult>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
         
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: request)
-        deleteRequest.resultType = .ResultTypeCount
+        deleteRequest.resultType = .resultTypeCount
         deleteRequest.affectedStores = [ meta.store ]
         
-        let r = try self.managedObjectContext.executeRequest(deleteRequest) as! NSBatchDeleteResult
+        let r = try self.managedObjectContext.execute(deleteRequest) as! NSBatchDeleteResult
         let count = r.result as! Int
         self.refreshAll()
         return count
     }
 
-    public func perform(block: (CoreDataUpdate) throws -> Void) {
-        self.managedObjectContext.performBlock() {
+    public func perform(_ block: (CoreDataUpdate) throws -> Void) {
+        self.managedObjectContext.perform() {
             do {
                 try block(self)
             } catch {
@@ -307,19 +307,19 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
-    private func saveContext(context: NSManagedObjectContext) throws {
+    private func saveContext(_ context: NSManagedObjectContext) throws {
         if !context.hasChanges {
             return
         }
         
         if !context.insertedObjects.isEmpty {
-            try context.obtainPermanentIDsForObjects(Array(context.insertedObjects))
+            try context.obtainPermanentIDs(for: Array(context.insertedObjects))
         }
     
         try context.save()
         
-        if let parent = context.parentContext {
-            parent.performBlock() {
+        if let parent = context.parent {
+            parent.perform() {
                 do {
                     try self.saveContext(parent)
                 } catch {
@@ -328,7 +328,7 @@ public class CoreDataUpdate : CoreDataFetch {
             }
         } else {
             if !self.context.autoMerge {
-                NSNotificationCenter.defaultCenter().postNotificationName(CoreDataContext.CommitNotification, object: self.context.origin)
+                NotificationCenter.default().post(name: Notification.Name(rawValue: CoreDataContext.CommitNotification), object: self.context.origin)
             }
         }
     }

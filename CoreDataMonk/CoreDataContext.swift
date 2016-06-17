@@ -32,37 +32,37 @@ public class CoreDataContext {
     public static let CommitNotification = "CoreDataDidCommit"
 
     public enum UpdateTarget {
-        case MainContext
-        case RootContext(autoMerge: Bool)
-        case PersistentStore
+        case mainContext
+        case rootContext(autoMerge: Bool)
+        case persistentStore
     }
 
     public enum UpdateOrder {
-        case Serial
-        case Default
+        case serial
+        case `default`
     }
     
     private class Observer {
         var observer: NSObjectProtocol
         
-        init(notification: String, object: AnyObject?, queue: NSOperationQueue?, block: (NSNotification) -> Void) {
-            self.observer = NSNotificationCenter.defaultCenter().addObserverForName(notification, object: object, queue: queue, usingBlock: block)
+        init(notification: String, object: AnyObject?, queue: OperationQueue?, block: (Notification) -> Void) {
+            self.observer = NotificationCenter.default().addObserver(forName: NSNotification.Name(rawValue: notification), object: object, queue: queue, using: block)
         }
         
         deinit {
-            NSNotificationCenter.defaultCenter().removeObserver(self.observer)
+            NotificationCenter.default().removeObserver(self.observer)
         }
     }
 
     let mainContext: NSManagedObjectContext?
     let stack: CoreDataStack
     let updateTarget: UpdateTarget
-    let updateQueue: dispatch_queue_t?
+    let updateQueue: DispatchQueue?
     var autoMergeObserver: AnyObject?
 
-    public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, updateTarget: UpdateTarget = .RootContext(autoMerge: false), updateOrder: UpdateOrder = .Default) throws {
-        if updateOrder == .Serial {
-            self.updateQueue = dispatch_queue_create("CoreDataContext.UpdateQueue", DISPATCH_QUEUE_SERIAL)
+    public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, updateTarget: UpdateTarget = .rootContext(autoMerge: false), updateOrder: UpdateOrder = .default) throws {
+        if updateOrder == .serial {
+            self.updateQueue = DispatchQueue(label: "CoreDataContext.UpdateQueue", attributes: DispatchQueueAttributes.serial)
         } else {
             self.updateQueue = nil
         }
@@ -72,12 +72,12 @@ public class CoreDataContext {
         self.updateTarget = updateTarget
 
         switch updateTarget {
-        case .MainContext:
+        case .mainContext:
             guard mainContext != nil else {
                 throw CoreDataError("CoreDataContext.UpdateTarget(.MainContext) need MainContext but it is not specified")
             }
         
-        case let .RootContext(autoMerge: autoMerge):
+        case let .rootContext(autoMerge: autoMerge):
             guard let rootContext = stack.rootManagedObjectContext else {
                 throw CoreDataError("CoreDataContext.UpdateTarget(.RootContext) need RootContext but CoreDataStack does not have one")
             }
@@ -87,11 +87,11 @@ public class CoreDataContext {
                     throw CoreDataError("CoreDataContext.UpdateTarget(.RootContext) need to auto merge MainContext but it is not specified")
                 }
 
-                self.autoMergeObserver = Observer(notification: NSManagedObjectContextDidSaveNotification, object: rootContext, queue: nil) {
+                self.autoMergeObserver = Observer(notification: NSNotification.Name.NSManagedObjectContextDidSave.rawValue, object: rootContext, queue: nil) {
                     [weak mainContext] notification in
                     
-                    mainContext?.performBlock() {
-                        mainContext?.mergeChangesFromContextDidSaveNotification(notification)
+                    mainContext?.perform() {
+                        mainContext?.mergeChanges(fromContextDidSave: notification)
                     }
                 }
             }
@@ -101,49 +101,49 @@ public class CoreDataContext {
         }
     }
 
-    public final func metadataForEntityClass(type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    public final func metadataForEntityClass(_ type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         return try self.stack.metadataForEntityClass(type)
     }
 
-    public class func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> AnyObject {
-        return Observer(notification: CoreDataContext.CommitNotification, object: nil, queue: queue ?? NSOperationQueue.mainQueue()) {
+    public class func observeCommit(queue: OperationQueue? = nil, block: () -> Void) -> AnyObject {
+        return Observer(notification: CoreDataContext.CommitNotification, object: nil, queue: queue ?? OperationQueue.main()) {
             _ in
             
             block()
         }
     }
 
-    public func observeCommit(queue queue: NSOperationQueue? = nil, block: () -> Void) -> AnyObject {
-        return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? NSOperationQueue.mainQueue()) {
+    public func observeCommit(queue: OperationQueue? = nil, block: () -> Void) -> AnyObject {
+        return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? OperationQueue.main()) {
             _ in
             
             block()
         }
     }
 
-    public func beginUpdate(block: (CoreDataUpdate) throws -> Void) {
+    public func beginUpdate(_ block: (CoreDataUpdate) throws -> Void) {
         beginUpdateContext().perform(block)
     }
 
-    public func beginUpdateAndWait(block: (CoreDataUpdate) throws -> Void) {
+    public func beginUpdateAndWait(_ block: (CoreDataUpdate) throws -> Void) {
         beginUpdateContext().performAndWait(block)
     }
 
     public func beginUpdateContext() -> CoreDataUpdateContext {
         let autoMerge: Bool
-        let context = NSManagedObjectContext(concurrencyType: .PrivateQueueConcurrencyType)
+        let context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         context.name = "CoreDataUpdateContext"
         
         switch self.updateTarget {
-        case .MainContext:
-            context.parentContext = self.mainContext
+        case .mainContext:
+            context.parent = self.mainContext
             autoMerge = true
             
-        case let .RootContext(autoMerge: flag):
-            context.parentContext = self.stack.rootManagedObjectContext
+        case let .rootContext(autoMerge: flag):
+            context.parent = self.stack.rootManagedObjectContext
             autoMerge = flag
             
-        case .PersistentStore:
+        case .persistentStore:
             context.persistentStoreCoordinator = self.stack.persistentStoreCoordinator
             autoMerge = false
         }
@@ -155,13 +155,13 @@ public class CoreDataContext {
 //---------------------------------------------------------------------------
 
 public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
-    public init(stack: CoreDataStack, uodateTarget: UpdateTarget = .MainContext, updateOrder: UpdateOrder = .Default) throws {
-        let context = NSManagedObjectContext(concurrencyType: .MainQueueConcurrencyType)
+    public init(stack: CoreDataStack, uodateTarget: UpdateTarget = .mainContext, updateOrder: UpdateOrder = .default) throws {
+        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         context.name = "CoreDataMainContext"
         context.mergePolicy = NSRollbackMergePolicy
         context.undoManager = nil
         if let rootContext = stack.rootManagedObjectContext {
-            context.parentContext = rootContext
+            context.parent = rootContext
         } else {
             context.persistentStoreCoordinator = stack.persistentStoreCoordinator
         }
@@ -177,13 +177,13 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         self.managedObjectContext.reset()
     }
 
-    public func fetchResults<T: NSManagedObject>(type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController {
+    public func fetchResults<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController<T> {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
-        request.resultType = .ManagedObjectResultType
+        request.resultType = NSFetchRequestResultType()
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy.descriptors
         try options?.apply(request)

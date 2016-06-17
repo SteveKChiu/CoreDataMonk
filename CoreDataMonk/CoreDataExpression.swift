@@ -29,49 +29,49 @@ import CoreData
 //---------------------------------------------------------------------------
 
 public struct CoreDataQuery {
-    let predicate: NSPredicate
+    let predicate: Predicate
     
-    private init(_ predicate: NSPredicate) {
+    private init(_ predicate: Predicate) {
         self.predicate = predicate
     }
     
-    public static func Where(format: String, _ args: AnyObject...) -> CoreDataQuery {
-        return CoreDataQuery(NSPredicate(format: format, argumentArray: args))
+    public static func `where`(_ format: String, _ args: AnyObject...) -> CoreDataQuery {
+        return CoreDataQuery(Predicate(format: format, argumentArray: args))
     }
 
-    public static func Where(predicate: NSPredicate) -> CoreDataQuery {
+    public static func `where`(_ predicate: Predicate) -> CoreDataQuery {
         return CoreDataQuery(predicate)
     }
 }
 
 public func && (lhs: CoreDataQuery, rhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .AndPredicateType, subpredicates: [ lhs.predicate, rhs.predicate ]))
+    return .where(CompoundPredicate(type: .and, subpredicates: [ lhs.predicate, rhs.predicate ]))
 }
 
 public func || (lhs: CoreDataQuery, rhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .OrPredicateType, subpredicates: [ lhs.predicate, rhs.predicate ]))
+    return .where(CompoundPredicate(type: .or, subpredicates: [ lhs.predicate, rhs.predicate ]))
 }
 
 public prefix func ! (lhs: CoreDataQuery) -> CoreDataQuery {
-    return .Where(NSCompoundPredicate(type: .NotPredicateType, subpredicates: [ lhs.predicate ]))
+    return .where(CompoundPredicate(type: .not, subpredicates: [ lhs.predicate ]))
 }
 
 //---------------------------------------------------------------------------
 
 public enum CoreDataQueryKey {
-    case Key(String)
-    case KeyModifier(String, NSComparisonPredicateModifier)
-    case KeyPath([String])
+    case key(String)
+    case keyModifier(String, ComparisonPredicate.Modifier)
+    case keyPath([String])
     
     var path: String {
         switch self {
-        case let .Key(path):
+        case let .key(path):
             return path
             
-        case let .KeyModifier(path, _):
+        case let .keyModifier(path, _):
             return path
 
-        case let .KeyPath(list):
+        case let .keyPath(list):
             var path = list.first!
             for item in list[1 ..< list.count] {
                 path += "."
@@ -81,39 +81,39 @@ public enum CoreDataQueryKey {
         }
     }
 
-    var modifier: NSComparisonPredicateModifier {
+    var modifier: ComparisonPredicate.Modifier {
         switch self {
-        case let .KeyModifier(_, mod):
+        case let .keyModifier(_, mod):
             return mod
 
         default:
-            return .DirectPredicateModifier
+            return .direct
         }
     }
     
     var list: [String] {
         switch self {
-        case let .Key(path):
+        case let .key(path):
             return [ path ]
             
-        case let .KeyModifier(path, _):
+        case let .keyModifier(path, _):
             return [ path ]
 
-        case let .KeyPath(list):
+        case let .keyPath(list):
             return list
         }
     }
     
     public var any: CoreDataQueryKey {
-        return .KeyModifier(self.path, .AnyPredicateModifier)
+        return .keyModifier(self.path, .any)
     }
     
     public var all: CoreDataQueryKey {
-        return .KeyModifier(self.path, .AllPredicateModifier)
+        return .keyModifier(self.path, .all)
     }
     
-    private func compare(op: NSPredicateOperatorType, _ key: CoreDataQueryKey) -> CoreDataQuery {
-        return .Where(NSComparisonPredicate(
+    private func compare(_ op: ComparisonPredicate.Operator, _ key: CoreDataQueryKey) -> CoreDataQuery {
+        return .where(ComparisonPredicate(
                 leftExpression: NSExpression(forKeyPath: self.path),
                 rightExpression: NSExpression(forKeyPath: key.path),
                 modifier: self.modifier,
@@ -121,8 +121,8 @@ public enum CoreDataQueryKey {
                 options: []))
     }
 
-    private func compare(op: NSPredicateOperatorType, _ value: AnyObject) -> CoreDataQuery {
-        return .Where(NSComparisonPredicate(
+    private func compare(_ op: ComparisonPredicate.Operator, _ value: AnyObject) -> CoreDataQuery {
+        return .where(ComparisonPredicate(
                 leftExpression: NSExpression(forKeyPath: self.path),
                 rightExpression: NSExpression(forConstantValue: value),
                 modifier: self.modifier,
@@ -140,72 +140,72 @@ public prefix func % (key: CoreDataQueryKey) -> CoreDataQueryKey {
 }
 
 public prefix func % (name: String) -> CoreDataQueryKey {
-    return CoreDataQueryKey.Key(name)
+    return CoreDataQueryKey.key(name)
 }
 
 public postfix func % (name: String) -> CoreDataQueryKey {
-    return CoreDataQueryKey.Key(name)
+    return CoreDataQueryKey.key(name)
 }
 
 public func | (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQueryKey {
-    return .KeyPath(lhs.list + rhs.list)
+    return .keyPath(lhs.list + rhs.list)
 }
 
 public func == (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
     let rhs = rhs == nil ? NSNull() : asConstant(rhs!)
-    return lhs.compare(.EqualToPredicateOperatorType, rhs)
+    return lhs.compare(.equalTo, rhs)
 }
 
 public func == (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.EqualToPredicateOperatorType, rhs)
+    return lhs.compare(.equalTo, rhs)
 }
 
 public func != (lhs: CoreDataQueryKey, rhs: Any?) -> CoreDataQuery {
     let rhs = rhs == nil ? NSNull() : asConstant(rhs!)
-    return lhs.compare(.NotEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.notEqualTo, rhs)
 }
 
 public func != (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.NotEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.notEqualTo, rhs)
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
     let rhs = asConstant(rhs)
-    return lhs.compare(.GreaterThanPredicateOperatorType, rhs)
+    return lhs.compare(.greaterThan, rhs)
 }
 
 public func > (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.GreaterThanPredicateOperatorType, rhs)
+    return lhs.compare(.greaterThan, rhs)
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
     let rhs = asConstant(rhs)
-    return lhs.compare(.LessThanPredicateOperatorType, rhs)
+    return lhs.compare(.lessThan, rhs)
 }
 
 public func < (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.LessThanPredicateOperatorType, rhs)
+    return lhs.compare(.lessThan, rhs)
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
     let rhs = asConstant(rhs)
-    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.greaterThanOrEqualTo, rhs)
 }
 
 public func >= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.GreaterThanOrEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.greaterThanOrEqualTo, rhs)
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: Any) -> CoreDataQuery {
     let rhs = asConstant(rhs)
-    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.lessThanOrEqualTo, rhs)
 }
 
 public func <= (lhs: CoreDataQueryKey, rhs: CoreDataQueryKey) -> CoreDataQuery {
-    return lhs.compare(.LessThanOrEqualToPredicateOperatorType, rhs)
+    return lhs.compare(.lessThanOrEqualTo, rhs)
 }
 
-private func asConstant(value: Any) -> AnyObject {
+private func asConstant(_ value: Any) -> AnyObject {
     // String, Bool, Int, Float, Double can be casted to AnyObject implicitly
     if let value = value as? AnyObject {
         return value
@@ -213,28 +213,28 @@ private func asConstant(value: Any) -> AnyObject {
     
     // Need to convert these Intxx/UIntxx types explicitly
     if let value = value as? Int64 {
-        return NSNumber(longLong: value)
+        return NSNumber(value: value)
     }
     if let value = value as? UInt64 {
-        return NSNumber(unsignedLongLong: value)
+        return NSNumber(value: value)
     }
     if let value = value as? Int32 {
-        return NSNumber(int: value)
+        return NSNumber(value: value)
     }
     if let value = value as? UInt32 {
-        return NSNumber(unsignedInt: value)
+        return NSNumber(value: value)
     }
     if let value = value as? Int16 {
-        return NSNumber(short: value)
+        return NSNumber(value: value)
     }
     if let value = value as? UInt16 {
-        return NSNumber(unsignedShort: value)
+        return NSNumber(value: value)
     }
     if let value = value as? Int8 {
-        return NSNumber(char: value)
+        return NSNumber(value: value)
     }
     if let value = value as? UInt8 {
-        return NSNumber(unsignedChar: value)
+        return NSNumber(value: value)
     }
     
     fatalError("\(value) can not be converted to CoreData constant value")
@@ -263,46 +263,46 @@ public struct CoreDataSelect {
         self.descriptions = [ description ]
     }
     
-    public static func Select(keys: String...) -> CoreDataSelect {
+    public static func Select(_ keys: String...) -> CoreDataSelect {
         return CoreDataSelect(keys)
     }
     
-    public static func Expression(expression: NSExpressionDescription) -> CoreDataSelect {
+    public static func Expression(_ expression: NSExpressionDescription) -> CoreDataSelect {
         return CoreDataSelect(expression)
     }
     
-    public static func Sum(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "sum:", property: property, alias: alias, type: .DecimalAttributeType)
+    public static func Sum(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "sum:", property: property, alias: alias, type: .decimalAttributeType)
     }
     
-    public static func Average(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "average:", property: property, alias: alias, type: .DecimalAttributeType)
+    public static func Average(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "average:", property: property, alias: alias, type: .decimalAttributeType)
     }
 
-    public static func StdDev(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "stddev:", property: property, alias: alias, type: .DecimalAttributeType)
+    public static func StdDev(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "stddev:", property: property, alias: alias, type: .decimalAttributeType)
     }
 
-    public static func Count(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "count:", property: property, alias: alias, type: .Integer64AttributeType)
+    public static func Count(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "count:", property: property, alias: alias, type: .integer64AttributeType)
     }
 
-    public static func Max(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "max:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Max(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "max:", property: property, alias: alias, type: .undefinedAttributeType)
     }
 
-    public static func Min(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "min:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Min(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "min:", property: property, alias: alias, type: .undefinedAttributeType)
     }
 
-    public static func Median(property: String, alias: String? = nil) -> CoreDataSelect {
-        return CoreDataSelect(function: "median:", property: property, alias: alias, type: .UndefinedAttributeType)
+    public static func Median(_ property: String, alias: String? = nil) -> CoreDataSelect {
+        return CoreDataSelect(function: "median:", property: property, alias: alias, type: .undefinedAttributeType)
     }
     
-    private func keyPathResultType(key: String, entity: NSEntityDescription) throws -> NSAttributeType {
-        if let r = key.rangeOfString(".") {
-            let name = key.substringToIndex(r.startIndex)
-            let next = key.substringFromIndex(r.startIndex.successor())
+    private func keyPathResultType(_ key: String, entity: NSEntityDescription) throws -> NSAttributeType {
+        if let r = key.range(of: ".") {
+            let name = key.substring(to: r.lowerBound)
+            let next = key.substring(from: r.upperBound)
             
             guard let relate = entity.relationshipsByName[name]?.destinationEntity else {
                 throw CoreDataError("Can not find relationship [\(name)] of [\(entity.name)]")
@@ -316,7 +316,7 @@ public struct CoreDataSelect {
         return attr.attributeType
     }
     
-    func resolve(entity: NSEntityDescription) throws -> [AnyObject] {
+    func resolve(_ entity: NSEntityDescription) throws -> [AnyObject] {
         var properties = [AnyObject]()
         for unknownDescription in self.descriptions {
             if unknownDescription is String {
@@ -328,18 +328,18 @@ public struct CoreDataSelect {
                 throw CoreDataError("Can not resolve property \(unknownDescription)")
             }
             
-            guard description.expressionResultType == .UndefinedAttributeType else {
+            guard description.expressionResultType == .undefinedAttributeType else {
                 properties.append(description)
                 continue
             }
             
             let expression = description.expression!
             switch expression.expressionType {
-            case .KeyPathExpressionType:
+            case .keyPath:
                 properties.append(expression.keyPath)
                 
-            case .FunctionExpressionType:
-                guard let argument = expression.arguments?.first where argument.expressionType == .KeyPathExpressionType else {
+            case .function:
+                guard let argument = expression.arguments?.first where argument.expressionType == .keyPath else {
                     throw CoreDataError("Can not resolve function result type unless its argument is key path: \(expression)")
                 }
                 description.expressionResultType = try keyPathResultType(argument.keyPath, entity: entity)
@@ -360,33 +360,33 @@ public func | (lhs: CoreDataSelect, rhs: CoreDataSelect) -> CoreDataSelect {
 //---------------------------------------------------------------------------
 
 public struct CoreDataOrderBy {
-    let descriptors: [NSSortDescriptor]
+    let descriptors: [SortDescriptor]
     
-    private init(_ descriptor: NSSortDescriptor) {
+    private init(_ descriptor: SortDescriptor) {
         self.descriptors = [ descriptor ]
     }
 
-    private init(_ descriptors: [NSSortDescriptor]) {
+    private init(_ descriptors: [SortDescriptor]) {
         self.descriptors = descriptors
     }
     
-    public static func Ascending(key: String) -> CoreDataOrderBy {
-        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: true))
-    }
-    
-    public static func Ascending(key: String, selector: Selector) -> CoreDataOrderBy {
-        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: true, selector: selector))
-    }
-    
-    public static func Descending(key: String) -> CoreDataOrderBy {
-        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: false))
+    public static func Ascending(_ key: String) -> CoreDataOrderBy {
+        return CoreDataOrderBy(SortDescriptor(key: key, ascending: true))
     }
 
-    public static func Descending(key: String, selector: Selector) -> CoreDataOrderBy {
-        return CoreDataOrderBy(NSSortDescriptor(key: key, ascending: false, selector: selector))
+    public static func Ascending(_ key: String, selector: Selector) -> CoreDataOrderBy {
+        return CoreDataOrderBy(SortDescriptor(key: key, ascending: true, selector: selector))
+    }
+    
+    public static func Descending(_ key: String) -> CoreDataOrderBy {
+        return CoreDataOrderBy(SortDescriptor(key: key, ascending: false))
     }
 
-    public static func Sort(descriptor: NSSortDescriptor) -> CoreDataOrderBy {
+    public static func Descending(_ key: String, selector: Selector) -> CoreDataOrderBy {
+        return CoreDataOrderBy(SortDescriptor(key: key, ascending: false, selector: selector))
+    }
+
+    public static func Sort(_ descriptor: SortDescriptor) -> CoreDataOrderBy {
         return CoreDataOrderBy(descriptor)
     }
 }
@@ -398,21 +398,20 @@ public func | (lhs: CoreDataOrderBy, rhs: CoreDataOrderBy) -> CoreDataOrderBy {
 //---------------------------------------------------------------------------
 
 public enum CoreDataQueryOptions {
-    case NoSubEntities
-    case NoPendingChanges
-    case NoPropertyValues
-    case Limit(Int)
-    case Offset(Int)
-    case Batch(Int)
-    case Prefetch([String])
-    case PropertiesOnly([String])
-    case Distinct
-    case Tweak(NSFetchRequest -> Void)
-    case Multiple([CoreDataQueryOptions])
+    case noSubEntities
+    case noPendingChanges
+    case noPropertyValues
+    case limit(Int)
+    case offset(Int)
+    case batch(Int)
+    case prefetch([String])
+    case propertiesOnly([String])
+    case distinct
+    case multiple([CoreDataQueryOptions])
 
     private var options: [CoreDataQueryOptions] {
         switch self {
-        case let .Multiple(list):
+        case let .multiple(list):
             return list
             
         default:
@@ -420,41 +419,38 @@ public enum CoreDataQueryOptions {
         }
     }
 
-    func apply(request: NSFetchRequest) throws {
+    func apply<T: NSFetchRequestResult>(_ request: NSFetchRequest<T>) throws {
         switch self {
-        case .NoSubEntities:
+        case .noSubEntities:
             request.includesSubentities = false
             
-        case .NoPendingChanges:
+        case .noPendingChanges:
             request.includesPendingChanges = false
             
-        case .NoPropertyValues:
+        case .noPropertyValues:
             request.includesPropertyValues = false
 
-        case let .Limit(limit):
+        case let .limit(limit):
             request.fetchLimit = limit
             
-        case let .Offset(offset):
+        case let .offset(offset):
             request.fetchOffset = offset
             
-        case let .Batch(size):
+        case let .batch(size):
             request.fetchBatchSize = size
             
-        case let .Prefetch(keys):
+        case let .prefetch(keys):
             request.relationshipKeyPathsForPrefetching = keys
          
-        case let .PropertiesOnly(keys):
-            if request.resultType == .ManagedObjectResultType {
+        case let .propertiesOnly(keys):
+            if request.resultType == NSFetchRequestResultType() {
                 request.propertiesToFetch = keys
             }
             
-        case .Distinct:
+        case .distinct:
             request.returnsDistinctResults = true
             
-        case let .Tweak(tweak):
-            tweak(request)
-            
-        case let .Multiple(list):
+        case let .multiple(list):
             for option in list {
                 try option.apply(request)
             }
@@ -463,5 +459,5 @@ public enum CoreDataQueryOptions {
 }
 
 public func | (lhs: CoreDataQueryOptions, rhs: CoreDataQueryOptions) -> CoreDataQueryOptions {
-    return .Multiple(lhs.options + rhs.options)
+    return .multiple(lhs.options + rhs.options)
 }

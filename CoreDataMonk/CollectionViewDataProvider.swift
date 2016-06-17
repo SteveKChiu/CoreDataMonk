@@ -33,10 +33,10 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         : NSObject, UICollectionViewDataSource, NSFetchedResultsControllerDelegate {
     weak var provider: CollectionViewDataProvider<EntityType>?
     var pendingActions: [() -> Void] = []
-    var updatedIndexPaths: Set<NSIndexPath> = []
+    var updatedIndexPaths: Set<IndexPath> = []
     var shouldReloadData = false
     var isFiltering = false
-    var semaphore: dispatch_semaphore_t
+    var semaphore: DispatchSemaphore
     
     var collectionView: UICollectionView? {
         return self.provider?.collectionView
@@ -44,18 +44,18 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     init(provider: CollectionViewDataProvider<EntityType>) {
         self.provider = provider
-        self.semaphore = dispatch_semaphore_create(1)
+        self.semaphore = DispatchSemaphore(value: 1)
     }
     
-    @objc func numberOfSectionsInCollectionView(collectionView: UICollectionView) -> Int {
+    @objc func numberOfSections(in collectionView: UICollectionView) -> Int {
         return self.provider?.numberOfSections() ?? 0
     }
 
-    @objc func collectionView(collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+    @objc func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
         return self.provider?.numberOfObjectsInSection(section) ?? 0
     }
     
-    @objc func collectionView(collectionView: UICollectionView, cellForItemAtIndexPath indexPath: NSIndexPath) -> UICollectionViewCell {
+    @objc func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if let object = self.provider?.objectAtIndexPath(indexPath),
                cell = self.provider?.onGetCell?(object, indexPath) {
             return cell
@@ -63,14 +63,14 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         return UICollectionViewCell()
     }
     
-    @objc func collectionView(collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, atIndexPath indexPath: NSIndexPath) -> UICollectionReusableView {
+    @objc func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
         if let view = self.provider?.onGetSupplementary?(kind, indexPath) {
             return view
         }
         return UICollectionReusableView()
     }
     
-    private func ensureIndexPath(indexPath: NSIndexPath) -> Bool {
+    private func ensureIndexPath(_ indexPath: IndexPath) -> Bool {
         if self.isFiltering || self.shouldReloadData {
             return false
         } else if self.updatedIndexPaths.contains(indexPath) {
@@ -84,66 +84,66 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         }
     }
     
-    @objc func controllerWillChangeContent(controller: NSFetchedResultsController) {
+    @objc func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         self.pendingActions.removeAll()
         self.updatedIndexPaths.removeAll()
         self.shouldReloadData = false
         self.isFiltering = self.provider?.objectFilter != nil
     }
 
-    @objc func controller(controller: NSFetchedResultsController, didChangeObject anObject: AnyObject, atIndexPath indexPath: NSIndexPath?, forChangeType type: NSFetchedResultsChangeType, newIndexPath: NSIndexPath?) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: AnyObject, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         switch type {
-        case .Insert:
+        case .insert:
             if ensureIndexPath(newIndexPath!) {
                 self.pendingActions.append() {
                     [weak self] in
-                    self?.collectionView?.insertItemsAtIndexPaths([ newIndexPath! ])
+                    self?.collectionView?.insertItems(at: [ newIndexPath! ])
                 }
             }
             
-        case .Delete:
+        case .delete:
             if ensureIndexPath(indexPath!) {
                 self.pendingActions.append() {
                     [weak self] in
-                    self?.collectionView?.deleteItemsAtIndexPaths([ indexPath! ])
+                    self?.collectionView?.deleteItems(at: [ indexPath! ])
                 }
             }
             
-        case .Move:
+        case .move:
             if ensureIndexPath(indexPath!) && ensureIndexPath(newIndexPath!) {
                 self.pendingActions.append() {
                     [weak self] in
-                    self?.collectionView?.moveItemAtIndexPath(indexPath!, toIndexPath: newIndexPath!)
+                    self?.collectionView?.moveItem(at: indexPath!, to: newIndexPath!)
                 }
             }
             
-        case .Update:
+        case .update:
             if ensureIndexPath(indexPath!) {
                 self.pendingActions.append() {
                     [weak self] in
-                    self?.collectionView?.reloadItemsAtIndexPaths([ indexPath! ])
+                    self?.collectionView?.reloadItems(at: [ indexPath! ])
                 }
             }
         }
     }
     
-    @objc func controller(controller: NSFetchedResultsController, didChangeSection sectionInfo: NSFetchedResultsSectionInfo, atIndex sectionIndex: Int, forChangeType type: NSFetchedResultsChangeType) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange sectionInfo: NSFetchedResultsSectionInfo, atSectionIndex sectionIndex: Int, for type: NSFetchedResultsChangeType) {
         if self.isFiltering || self.shouldReloadData {
             return
         }
 
         switch type {
-        case .Insert:
+        case .insert:
             self.pendingActions.append() {
                 [weak self] in
-                self?.collectionView?.insertSections(NSIndexSet(index: sectionIndex))
+                self?.collectionView?.insertSections(IndexSet(integer: sectionIndex))
                 self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
             
-        case .Delete:
+        case .delete:
             self.pendingActions.append() {
                 [weak self] in
-                self?.collectionView?.deleteSections(NSIndexSet(index: sectionIndex))
+                self?.collectionView?.deleteSections(IndexSet(integer: sectionIndex))
                 self?.collectionView?.collectionViewLayout.invalidateLayout()
             }
             
@@ -152,7 +152,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         }
     }
     
-    @objc func controllerDidChangeContent(controller: NSFetchedResultsController) {
+    @objc func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         if self.isFiltering {
             self.provider?.filter()
             self.provider?.onDataChanged?()
@@ -173,7 +173,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
 
         // make sure batch update animation is not overlapped
         let semaphore = self.semaphore
-        dispatch_semaphore_wait(semaphore, dispatch_time(DISPATCH_TIME_NOW, Int64(NSEC_PER_SEC)))
+        _ = semaphore.wait(timeout: DispatchTime.now() + Double(Int64(NSEC_PER_SEC)) / Double(NSEC_PER_SEC))
         self.updatedIndexPaths.removeAll()
 
         collectionView.performBatchUpdates({
@@ -187,7 +187,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         }, completion: {
             [weak self] _ in
             self?.provider?.onDataChanged?()
-            dispatch_semaphore_signal(semaphore)
+            semaphore.signal()
         })
     }
 }
@@ -198,8 +198,8 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
     public let context: CoreDataMainContext
     private var bridge: CollectionViewDataBridge<EntityType>!
     
-    public typealias OnGetCell = (EntityType, NSIndexPath) -> UICollectionViewCell?
-    public typealias OnGetSupplementary = (String, NSIndexPath) -> UICollectionReusableView?
+    public typealias OnGetCell = (EntityType, IndexPath) -> UICollectionViewCell?
+    public typealias OnGetSupplementary = (String, IndexPath) -> UICollectionReusableView?
     public typealias OnDataChanged = () -> Void
     
     public var onGetCell: OnGetCell?
@@ -217,7 +217,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         }
     }
 
-    public override var fetchedResultsController: NSFetchedResultsController? {
+    public override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return super.fetchedResultsController
         }
@@ -234,12 +234,12 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         self.bridge = CollectionViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(collectionView: UICollectionView, onGetCell: OnGetCell) {
+    public func bind(_ collectionView: UICollectionView, onGetCell: OnGetCell) {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
     }
     
-    public func load(query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws {
+    public func load(_ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws {
         self.fetchedResultsController = try self.context.fetchResults(EntityType.self, query, orderBy: orderBy, sectionBy: sectionBy, options: options)
         try reload()
     }
