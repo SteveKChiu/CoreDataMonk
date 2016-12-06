@@ -30,13 +30,13 @@ import CoreData
 //---------------------------------------------------------------------------
 
 open class ViewDataProvider<EntityType: NSManagedObject> {
-    private var controller: NSFetchedResultsController<NSFetchRequestResult>?
+    private var controller: NSFetchedResultsController<EntityType>?
     private var filteredSections: [[EntityType]]?
     
     public typealias ObjectFilter = ([[EntityType]]) -> [[EntityType]]
     public var objectFilter: ObjectFilter?
     
-    open var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
+    open var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return self.controller
         }
@@ -76,7 +76,7 @@ open class ViewDataProvider<EntityType: NSManagedObject> {
             }
             return nil
         } else {
-            return self.controller?.object(at: indexPath) as? EntityType
+            return self.controller?.object(at: indexPath)
         }
     }
 

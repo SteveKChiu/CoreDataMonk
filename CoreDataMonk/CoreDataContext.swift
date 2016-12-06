@@ -177,13 +177,13 @@ open class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         self.managedObjectContext.reset()
     }
 
-    open func fetchResults<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController<NSFetchRequestResult> {
+    open func fetchResults<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController<T> {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
-        request.resultType = NSFetchRequestResultType()
+        request.resultType = .managedObjectResultType
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy.descriptors
         try options?.apply(request)

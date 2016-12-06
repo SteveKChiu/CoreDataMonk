@@ -245,15 +245,15 @@ open class CoreDataUpdate : CoreDataFetch {
 
     public final func deleteAll<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
-        request.resultType = NSFetchRequestResultType()
+        request.resultType = .managedObjectResultType
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
 
-        let objects = try self.managedObjectContext.fetch(request) as! [T]
+        let objects = try self.managedObjectContext.fetch(request)
         try self.delete(objects)
         return objects.count
     }

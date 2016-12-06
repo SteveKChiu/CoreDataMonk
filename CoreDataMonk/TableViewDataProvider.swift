@@ -39,7 +39,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         return self.provider?.tableView
     }
     
-    var controller: NSFetchedResultsController<NSFetchRequestResult>? {
+    var controller: NSFetchedResultsController<EntityType>? {
         return self.provider?.fetchedResultsController
     }
 
@@ -202,7 +202,7 @@ open class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider
         }
     }
 
-    open override var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
+    open override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return super.fetchedResultsController
         }

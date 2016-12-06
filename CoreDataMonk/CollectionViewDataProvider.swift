@@ -217,7 +217,7 @@ open class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataPro
         }
     }
 
-    open override var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
+    open override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
         get {
             return super.fetchedResultsController
         }

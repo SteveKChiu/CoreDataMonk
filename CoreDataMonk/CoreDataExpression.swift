@@ -366,7 +366,7 @@ public enum CoreDataQueryOptions {
     case prefetch([String])
     case propertiesOnly([String])
     case distinct
-    case tweak((NSFetchRequest<NSFetchRequestResult>) -> Void)
+    case tweak((Any) -> Void)
     case multiple([CoreDataQueryOptions])
 
     fileprivate var options: [CoreDataQueryOptions] {
@@ -379,7 +379,7 @@ public enum CoreDataQueryOptions {
         }
     }
 
-    func apply(_ request: NSFetchRequest<NSFetchRequestResult>) throws {
+    func apply<T: NSFetchRequestResult>(_ request: NSFetchRequest<T>) throws {
         switch self {
         case .noSubEntities:
             request.includesSubentities = false
@@ -403,7 +403,7 @@ public enum CoreDataQueryOptions {
             request.relationshipKeyPathsForPrefetching = keys
          
         case let .propertiesOnly(keys):
-            if request.resultType == NSFetchRequestResultType() {
+            if request.resultType == .managedObjectResultType {
                 request.propertiesToFetch = keys
             }
             

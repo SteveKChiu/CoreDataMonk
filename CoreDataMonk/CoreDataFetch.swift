@@ -62,11 +62,11 @@ public extension CoreDataFetch {
 
     public final func fetch<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery, options: CoreDataQueryOptions? = nil) throws -> T {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 1
-        request.resultType = NSFetchRequestResultType()
+        request.resultType = .managedObjectResultType
         request.predicate = query.predicate
         try options?.apply(request)
         
@@ -74,12 +74,12 @@ public extension CoreDataFetch {
             throw NSError(domain: "CoreDataMonk.NotFound", code: 0, userInfo: nil)
         }
         
-        return obj as! T
+        return obj
     }
 
     public final func fetchCount<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
@@ -90,21 +90,21 @@ public extension CoreDataFetch {
 
     public final func fetchAll<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [T] {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<T>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
-        request.resultType = NSFetchRequestResultType()
+        request.resultType = .managedObjectResultType
         request.predicate = query?.predicate
         request.sortDescriptors = orderBy?.descriptors
         try options?.apply(request)
         
-        return try self.managedObjectContext.fetch(request) as! [T]
+        return try self.managedObjectContext.fetch(request)
     }
 
     public final func fetchID<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery, options: CoreDataQueryOptions? = nil) throws -> NSManagedObjectID {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<NSManagedObjectID>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 1
@@ -112,12 +112,12 @@ public extension CoreDataFetch {
         request.predicate = query.predicate
         try options?.apply(request)
         
-        return try self.managedObjectContext.fetch(request).first as! NSManagedObjectID
+        return try self.managedObjectContext.fetch(request).first!
     }
 
     public final func fetchAllID<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, options: CoreDataQueryOptions? = nil) throws -> [NSManagedObjectID] {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<NSManagedObjectID>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
@@ -126,12 +126,12 @@ public extension CoreDataFetch {
         request.sortDescriptors = orderBy?.descriptors
         try options?.apply(request)
         
-        return try self.managedObjectContext.fetch(request) as! [NSManagedObjectID]
+        return try self.managedObjectContext.fetch(request)
     }
 
     public func queryValue<T: NSManagedObject>(_ type: T.Type, _ select: CoreDataSelect, _ query: CoreDataQuery? = nil, options: CoreDataQueryOptions? = nil) throws -> Any {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<NSDictionary>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 1
@@ -140,13 +140,13 @@ public extension CoreDataFetch {
         request.predicate = query?.predicate
         try options?.apply(request)
         
-        let result = try self.managedObjectContext.fetch(request).first as! NSDictionary
+        let result = try self.managedObjectContext.fetch(request).first!
         return result.allValues.first!
     }
     
-    public func query<T: NSManagedObject>(_ type: T.Type, _ select: CoreDataSelect, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, groupBy: CoreDataQueryKey? = nil, having: CoreDataQuery? = nil, options: CoreDataQueryOptions? = nil) throws -> [[String: Any]] {
+    public func query<T: NSManagedObject>(_ type: T.Type, _ select: CoreDataSelect, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy? = nil, groupBy: CoreDataQueryKey? = nil, having: CoreDataQuery? = nil, options: CoreDataQueryOptions? = nil) throws -> [NSDictionary] {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<NSFetchRequestResult>()
+        let request = NSFetchRequest<NSDictionary>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0
@@ -160,7 +160,7 @@ public extension CoreDataFetch {
         }
         try options?.apply(request)
         
-        return try self.managedObjectContext.fetch(request) as! [[String: Any]]
+        return try self.managedObjectContext.fetch(request)
     }
     
     @available(iOS 8.3, *)
