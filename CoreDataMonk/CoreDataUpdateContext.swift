@@ -28,7 +28,7 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-public class CoreDataUpdateContext {
+open class CoreDataUpdateContext {
     let context: NSManagedObjectContext
     let origin: CoreDataContext
     let autoMerge: Bool
@@ -43,11 +43,11 @@ public class CoreDataUpdateContext {
         return self.context
     }
 
-    public final func handleError(_ error: ErrorProtocol) {
+    public final func handleError(_ error: Error) {
         self.origin.stack.handleError(error)
     }
     
-    public func perform(_ block: (CoreDataUpdate) throws -> Void) {
+    open func perform(_ block: @escaping (CoreDataUpdate) throws -> Void) {
         if let queue = self.origin.updateQueue {
             queue.async {
                 let group = DispatchGroup()
@@ -75,7 +75,7 @@ public class CoreDataUpdateContext {
         }
     }
 
-    public func performAndWait(_ block: (CoreDataUpdate) throws -> Void) {
+    open func performAndWait(_ block: @escaping (CoreDataUpdate) throws -> Void) {
         if let queue = self.origin.updateQueue {
             queue.sync {
                 let group = DispatchGroup()
@@ -103,7 +103,7 @@ public class CoreDataUpdateContext {
         }
     }
     
-    public func wait() {
+    open func wait() {
         if let queue = self.origin.updateQueue {
             queue.sync {
                 // do nothing
@@ -115,7 +115,7 @@ public class CoreDataUpdateContext {
         }
     }
 
-    public func commit() {
+    open func commit() {
         perform() {
             update in
             
@@ -123,7 +123,7 @@ public class CoreDataUpdateContext {
         }
     }
     
-    public func rollback() {
+    open func rollback() {
         perform() {
             update in
             
@@ -134,8 +134,8 @@ public class CoreDataUpdateContext {
 
 //---------------------------------------------------------------------------
 
-public class CoreDataUpdate : CoreDataFetch {
-    public let context: CoreDataUpdateContext
+open class CoreDataUpdate : CoreDataFetch {
+    open let context: CoreDataUpdateContext
     let group: DispatchGroup?
     
     init(context: CoreDataUpdateContext, group: DispatchGroup?) {
@@ -161,15 +161,15 @@ public class CoreDataUpdate : CoreDataFetch {
         return try self.context.origin.metadataForEntityClass(type)
     }
 
-    public func create<T: NSManagedObject>(_ type: T.Type) throws -> T {
+    open func create<T: NSManagedObject>(_ type: T.Type) throws -> T {
         let meta = try self.metadataForEntityClass(type)
         let obj = T(entity: meta.entity, insertInto: self.managedObjectContext)
         self.managedObjectContext.assign(obj, to: meta.store)
         return obj
     }
 
-    private func applyProperties(_ obj: NSManagedObject, predicate: Predicate) throws {
-        if let comp = predicate as? ComparisonPredicate {
+    private func applyProperties(_ obj: NSManagedObject, predicate: NSPredicate) throws {
+        if let comp = predicate as? NSComparisonPredicate {
             guard comp.predicateOperatorType == .equalTo else {
                 throw CoreDataError("fetchOrCreate: only == and && are supported")
             }
@@ -184,7 +184,7 @@ public class CoreDataUpdate : CoreDataFetch {
                 obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
                 
             case .constantValue:
-                var value: AnyObject? = comp.rightExpression.constantValue
+                var value = comp.rightExpression.constantValue
                 value = value is NSNull ? nil : value
                 obj.setValue(value, forKeyPath: comp.leftExpression.keyPath)
                 
@@ -194,24 +194,23 @@ public class CoreDataUpdate : CoreDataFetch {
             return
         }
         
-        if let comp = predicate as? CompoundPredicate {
+        if let comp = predicate as? NSCompoundPredicate {
             guard comp.compoundPredicateType == .and else {
                 throw CoreDataError("fetchOrCreate: only == and && are supported")
             }
             
-            try applyProperties(obj, predicate: comp.subpredicates[0] as! Predicate)
-            try applyProperties(obj, predicate: comp.subpredicates[1] as! Predicate)
+            try applyProperties(obj, predicate: comp.subpredicates[0] as! NSPredicate)
+            try applyProperties(obj, predicate: comp.subpredicates[1] as! NSPredicate)
             return
         }
         
         throw CoreDataError("Only == and && are supported in fetchOrCreate")
     }
 
-    public func fetchOrCreate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery) throws -> T {
+    open func fetchOrCreate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery) throws -> T {
         do {
             return try fetch(type, query)
-        } catch {
-            let error = error as NSError
+        } catch (let error as NSError) {
             if error.domain != "CoreDataMonk.NotFound" {
                 throw error
             }
@@ -222,22 +221,22 @@ public class CoreDataUpdate : CoreDataFetch {
         }
     }
 
-    public func delete<T: NSManagedObject>(_ obj: T) throws {
+    open func delete<T: NSManagedObject>(_ obj: T) throws {
         self.managedObjectContext.delete(obj)
     }
 
-    public func delete<T: NSManagedObject>(_ objs: [T]) throws {
+    open func delete<T: NSManagedObject>(_ objs: [T]) throws {
         for obj in objs {
             self.managedObjectContext.delete(obj)
         }
     }
 
-    public func delete<T: NSManagedObject>(_ type: T.Type, id: NSManagedObjectID) throws {
+    open func delete<T: NSManagedObject>(_ type: T.Type, id: NSManagedObjectID) throws {
         let obj = try self.managedObjectContext.existingObject(with: id) as! T
         self.managedObjectContext.delete(obj)
     }
 
-    public func delete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
+    open func delete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
         for id in ids {
             let obj = try self.managedObjectContext.existingObject(with: id) as! T
             self.managedObjectContext.delete(obj)
@@ -246,7 +245,7 @@ public class CoreDataUpdate : CoreDataFetch {
 
     public final func deleteAll<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<T>()
+        let request = NSFetchRequest<NSFetchRequestResult>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.predicate = query?.predicate
@@ -254,13 +253,13 @@ public class CoreDataUpdate : CoreDataFetch {
         request.returnsObjectsAsFaults = true
         request.includesPropertyValues = false
 
-        let objects = try self.managedObjectContext.fetch(request)
+        let objects = try self.managedObjectContext.fetch(request) as! [T]
         try self.delete(objects)
         return objects.count
     }
     
     @available(iOS 9.0, *)
-    public func batchUpdate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: AnyObject]) throws -> Int {
+    open func batchUpdate<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, properties: [String: Any]) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
         let request = NSBatchUpdateRequest(entity: meta.entity)
         request.resultType = .updatedObjectsCountResultType
@@ -273,14 +272,14 @@ public class CoreDataUpdate : CoreDataFetch {
     }
 
     @available(iOS 9.0, *)
-    public func batchDelete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
+    open func batchDelete<T: NSManagedObject>(_ type: T.Type, ids: [NSManagedObjectID]) throws {
         let request = NSBatchDeleteRequest(objectIDs: ids)
         try self.managedObjectContext.execute(request)
         self.refreshAll()
     }
 
     @available(iOS 9.0, *)
-    public func batchDelete<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
+    open func batchDelete<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil) throws -> Int {
         let meta = try self.metadataForEntityClass(type)
         let request = NSFetchRequest<NSFetchRequestResult>()
         request.entity = meta.entity
@@ -297,7 +296,7 @@ public class CoreDataUpdate : CoreDataFetch {
         return count
     }
 
-    public func perform(_ block: (CoreDataUpdate) throws -> Void) {
+    open func perform(_ block: @escaping (CoreDataUpdate) throws -> Void) {
         self.managedObjectContext.perform() {
             do {
                 try block(self)
@@ -328,16 +327,16 @@ public class CoreDataUpdate : CoreDataFetch {
             }
         } else {
             if !self.context.autoMerge {
-                NotificationCenter.default().post(name: Notification.Name(rawValue: CoreDataContext.CommitNotification), object: self.context.origin)
+                NotificationCenter.default.post(name: Notification.Name(rawValue: CoreDataContext.CommitNotification), object: self.context.origin)
             }
         }
     }
     
-    public func commit() throws {
+    open func commit() throws {
         try saveContext(self.managedObjectContext)
     }
     
-    public func rollback() {
+    open func rollback() {
         self.managedObjectContext.reset()
     }
 }

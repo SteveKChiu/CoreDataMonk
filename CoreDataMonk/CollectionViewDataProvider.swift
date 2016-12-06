@@ -57,7 +57,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
     
     @objc func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         if let object = self.provider?.objectAtIndexPath(indexPath),
-               cell = self.provider?.onGetCell?(object, indexPath) {
+               let cell = self.provider?.onGetCell?(object, indexPath) {
             return cell
         }
         return UICollectionViewCell()
@@ -91,7 +91,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
         self.isFiltering = self.provider?.objectFilter != nil
     }
 
-    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: AnyObject, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         switch type {
         case .insert:
             if ensureIndexPath(newIndexPath!) {
@@ -178,7 +178,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
 
         collectionView.performBatchUpdates({
             [weak self] in
-            if let actions = self?.pendingActions where !actions.isEmpty {
+            if let actions = self?.pendingActions, !actions.isEmpty {
                 self?.pendingActions.removeAll()
                 for action in actions {
                     action()
@@ -194,7 +194,7 @@ private class CollectionViewDataBridge<EntityType: NSManagedObject>
 
 //---------------------------------------------------------------------------
 
-public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider<EntityType> {
+open class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider<EntityType> {
     public let context: CoreDataMainContext
     private var bridge: CollectionViewDataBridge<EntityType>!
     
@@ -217,7 +217,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         }
     }
 
-    public override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
+    open override var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
         get {
             return super.fetchedResultsController
         }
@@ -234,7 +234,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         self.bridge = CollectionViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(_ collectionView: UICollectionView, onGetCell: OnGetCell) {
+    public func bind(_ collectionView: UICollectionView, onGetCell: @escaping OnGetCell) {
         self.onGetCell = onGetCell
         self.collectionView = collectionView
     }
@@ -244,7 +244,7 @@ public class CollectionViewDataProvider<EntityType: NSManagedObject> : ViewDataP
         try reload()
     }
     
-    public override func filter() {
+    open override func filter() {
         super.filter()
         self.collectionView?.reloadData()
     }

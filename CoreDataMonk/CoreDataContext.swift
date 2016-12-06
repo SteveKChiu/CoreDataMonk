@@ -28,8 +28,8 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-public class CoreDataContext {
-    public static let CommitNotification = "CoreDataDidCommit"
+open class CoreDataContext {
+    open static let CommitNotification = "CoreDataDidCommit"
 
     public enum UpdateTarget {
         case mainContext
@@ -45,12 +45,12 @@ public class CoreDataContext {
     private class Observer {
         var observer: NSObjectProtocol
         
-        init(notification: String, object: AnyObject?, queue: OperationQueue?, block: (Notification) -> Void) {
-            self.observer = NotificationCenter.default().addObserver(forName: NSNotification.Name(rawValue: notification), object: object, queue: queue, using: block)
+        init(notification: String, object: AnyObject?, queue: OperationQueue?, block: @escaping (Notification) -> Void) {
+            self.observer = NotificationCenter.default.addObserver(forName: NSNotification.Name(rawValue: notification), object: object, queue: queue, using: block)
         }
         
         deinit {
-            NotificationCenter.default().removeObserver(self.observer)
+            NotificationCenter.default.removeObserver(self.observer)
         }
     }
 
@@ -62,7 +62,7 @@ public class CoreDataContext {
 
     public init(stack: CoreDataStack, mainContext: NSManagedObjectContext? = nil, updateTarget: UpdateTarget = .rootContext(autoMerge: false), updateOrder: UpdateOrder = .default) throws {
         if updateOrder == .serial {
-            self.updateQueue = DispatchQueue(label: "CoreDataContext.UpdateQueue", attributes: DispatchQueueAttributes.serial)
+            self.updateQueue = DispatchQueue(label: "CoreDataContext.UpdateQueue", attributes: [])
         } else {
             self.updateQueue = nil
         }
@@ -105,31 +105,31 @@ public class CoreDataContext {
         return try self.stack.metadataForEntityClass(type)
     }
 
-    public class func observeCommit(queue: OperationQueue? = nil, block: () -> Void) -> AnyObject {
-        return Observer(notification: CoreDataContext.CommitNotification, object: nil, queue: queue ?? OperationQueue.main()) {
+    open class func observeCommit(queue: OperationQueue? = nil, block: @escaping () -> Void) -> AnyObject {
+        return Observer(notification: CoreDataContext.CommitNotification, object: nil, queue: queue ?? OperationQueue.main) {
             _ in
             
             block()
         }
     }
 
-    public func observeCommit(queue: OperationQueue? = nil, block: () -> Void) -> AnyObject {
-        return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? OperationQueue.main()) {
+    open func observeCommit(queue: OperationQueue? = nil, block: @escaping () -> Void) -> AnyObject {
+        return Observer(notification: CoreDataContext.CommitNotification, object: self, queue: queue ?? OperationQueue.main) {
             _ in
             
             block()
         }
     }
 
-    public func beginUpdate(_ block: (CoreDataUpdate) throws -> Void) {
+    open func beginUpdate(_ block: @escaping (CoreDataUpdate) throws -> Void) {
         beginUpdateContext().perform(block)
     }
 
-    public func beginUpdateAndWait(_ block: (CoreDataUpdate) throws -> Void) {
+    open func beginUpdateAndWait(_ block: @escaping (CoreDataUpdate) throws -> Void) {
         beginUpdateContext().performAndWait(block)
     }
 
-    public func beginUpdateContext() -> CoreDataUpdateContext {
+    open func beginUpdateContext() -> CoreDataUpdateContext {
         let autoMerge: Bool
         let context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         context.name = "CoreDataUpdateContext"
@@ -154,7 +154,7 @@ public class CoreDataContext {
 
 //---------------------------------------------------------------------------
 
-public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
+open class CoreDataMainContext : CoreDataContext, CoreDataFetch {
     public init(stack: CoreDataStack, uodateTarget: UpdateTarget = .mainContext, updateOrder: UpdateOrder = .default) throws {
         let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
         context.name = "CoreDataMainContext"
@@ -173,13 +173,13 @@ public class CoreDataMainContext : CoreDataContext, CoreDataFetch {
         return self.mainContext!
     }
 
-    public func reset() {
+    open func reset() {
         self.managedObjectContext.reset()
     }
 
-    public func fetchResults<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController<T> {
+    open func fetchResults<T: NSManagedObject>(_ type: T.Type, _ query: CoreDataQuery? = nil, orderBy: CoreDataOrderBy, sectionBy: CoreDataQueryKey? = nil, options: CoreDataQueryOptions? = nil) throws -> NSFetchedResultsController<NSFetchRequestResult> {
         let meta = try self.metadataForEntityClass(type)
-        let request = NSFetchRequest<T>()
+        let request = NSFetchRequest<NSFetchRequestResult>()
         request.entity = meta.entity
         request.affectedStores = [ meta.store ]
         request.fetchLimit = 0

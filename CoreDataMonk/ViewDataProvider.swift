@@ -29,14 +29,14 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-public class ViewDataProvider<EntityType: NSManagedObject> {
-    private var controller: NSFetchedResultsController<EntityType>?
+open class ViewDataProvider<EntityType: NSManagedObject> {
+    private var controller: NSFetchedResultsController<NSFetchRequestResult>?
     private var filteredSections: [[EntityType]]?
     
     public typealias ObjectFilter = ([[EntityType]]) -> [[EntityType]]
     public var objectFilter: ObjectFilter?
     
-    public var fetchedResultsController: NSFetchedResultsController<EntityType>? {
+    open var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
         get {
             return self.controller
         }
@@ -45,7 +45,7 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         }
     }
     
-    public func numberOfSections() -> Int {
+    open func numberOfSections() -> Int {
         if let sections = self.filteredSections {
             return sections.count
         } else {
@@ -53,34 +53,34 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         }
     }
     
-    public func numberOfObjectsInSection(_ section: Int) -> Int {
+    open func numberOfObjectsInSection(_ section: Int) -> Int {
         if let sections = self.filteredSections {
             if section < sections.count {
                 return sections[section].count
             }
         } else {
-            if let sections = self.controller?.sections where section < sections.count {
+            if let sections = self.controller?.sections, section < sections.count {
                 return sections[section].numberOfObjects
             }
         }
         return 0
     }
     
-    public func objectAtIndexPath(_ indexPath: IndexPath) -> EntityType? {
+    open func objectAtIndexPath(_ indexPath: IndexPath) -> EntityType? {
         if let sections = self.filteredSections {
-            if (indexPath as NSIndexPath).section < sections.count {
-                let objects = sections[(indexPath as NSIndexPath).section]
-                if (indexPath as NSIndexPath).item < objects.count {
-                    return objects[(indexPath as NSIndexPath).item]
+            if indexPath.section < sections.count {
+                let objects = sections[indexPath.section]
+                if indexPath.item < objects.count {
+                    return objects[indexPath.item]
                 }
             }
             return nil
         } else {
-            return self.controller?.object(at: indexPath)
+            return self.controller?.object(at: indexPath) as? EntityType
         }
     }
 
-    public func indexPathForObject(_ object: EntityType) -> IndexPath? {
+    open func indexPathForObject(_ object: EntityType) -> IndexPath? {
         if let sections = self.filteredSections {
             for (sidx, section) in sections.enumerated() {
                 for (idx, item) in section.enumerated() {
@@ -95,9 +95,9 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         }
     }
 
-    public func filter() {
+    open func filter() {
         if let objectFilter = self.objectFilter,
-               sections = self.controller?.sections {
+               let sections = self.controller?.sections {
             var filteredSections = [[EntityType]]()
             for section in sections {
                 if let objects = section.objects as? [EntityType] {
@@ -112,7 +112,7 @@ public class ViewDataProvider<EntityType: NSManagedObject> {
         }
     }
 
-    public func reload() throws {
+    open func reload() throws {
         try self.fetchedResultsController?.performFetch()
         self.filter()
     }

@@ -28,32 +28,32 @@ import CoreData
 
 //---------------------------------------------------------------------------
 
-func CoreDataError(_ message: String) -> NSError {
+func CoreDataError(_ message: String) -> Error {
     return NSError(domain: "CoreDataStack", code: 0, userInfo: [NSLocalizedDescriptionKey: message])
 }
 
 //---------------------------------------------------------------------------
 
-public class CoreDataStack {
-    public typealias OnError = (NSError) -> Void
+open class CoreDataStack {
+    public typealias OnError = (Error) -> Void
     
     public enum RootContextType {
         case none
         case shared
     }
         
-    public var lastError: NSError?
-    public var onError: OnError?
+    open var lastError: Error?
+    open var onError: OnError?
     
     private var coordinator: NSPersistentStoreCoordinator!
     private var rootContext: NSManagedObjectContext?
     
     public init(modelName: String? = nil, bundle: Bundle? = nil, rootContext: RootContextType = .shared) throws {
-        let bundle = bundle ?? Bundle.main()
-        let modelName = modelName ?? Bundle.main().objectForInfoDictionaryKey("CFBundleName") as? String ?? "CoreData"
+        let bundle = bundle ?? Bundle.main
+        let modelName = modelName ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "CoreData"
         
-        guard let modelUrl = bundle.urlForResource(modelName, withExtension: "momd"),
-                  model = NSManagedObjectModel(contentsOf: modelUrl) else {
+        guard let modelUrl = bundle.url(forResource: modelName, withExtension: "momd"),
+                  let model = NSManagedObjectModel(contentsOf: modelUrl) else {
             throw CoreDataError("Can not load core data model from '\(modelName)'")
         }
         
@@ -77,7 +77,7 @@ public class CoreDataStack {
         return self.rootContext
     }
 
-    public func addInMemoryStore(configuration: String? = nil) throws {
+    open func addInMemoryStore(configuration: String? = nil) throws {
         let store = try self.coordinator.addPersistentStore(
             ofType: NSInMemoryStoreType,
             configurationName: configuration,
@@ -87,18 +87,18 @@ public class CoreDataStack {
         try updateMetadata(store)
     }
     
-    public func addDatabaseStore(fileName: String, configuration: String? = nil, autoMigrating: Bool = true, resetOnFailure: Bool = false) throws {
-        let directory = FileManager.default().urlsForDirectory(.applicationSupportDirectory, inDomains: .userDomainMask).first!
-        let fileURL = try! directory.appendingPathComponent(fileName)
+    open func addDatabaseStore(fileName: String, configuration: String? = nil, autoMigrating: Bool = true, resetOnFailure: Bool = false) throws {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let fileURL = directory.appendingPathComponent(fileName)
         try addDatabaseStore(fileURL: fileURL, configuration: configuration, autoMigrating: autoMigrating, resetOnFailure: resetOnFailure)
     }
 
-    public func addDatabaseStore(fileURL: URL? = nil, configuration: String? = nil, autoMigrating: Bool = true, resetOnFailure: Bool = false) throws {
+    open func addDatabaseStore(fileURL: URL? = nil, configuration: String? = nil, autoMigrating: Bool = true, resetOnFailure: Bool = false) throws {
         var fileURL: URL! = fileURL
         if fileURL == nil {
-            let directory = FileManager.default().urlsForDirectory(.applicationSupportDirectory, inDomains: .userDomainMask).first!
-            let fileName = (Bundle.main().objectForInfoDictionaryKey("CFBundleName") as? String) ?? "CoreData"
-            fileURL = try! directory.appendingPathComponent(fileName + ".sqlite")
+            let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            let fileName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String) ?? "CoreData"
+            fileURL = directory.appendingPathComponent(fileName + ".sqlite")
         }
     
         if let store = self.coordinator.persistentStore(for: fileURL) {
@@ -112,11 +112,11 @@ public class CoreDataStack {
             throw CoreDataError("Fail to add SQLite persistent store at \"\(fileURL)\", because a different one at that URL already exists")
         }
         
-        let fileManager = FileManager.default()
-        _ = try? fileManager.createDirectory(at: try! fileURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+        let fileManager = FileManager.default
+        _ = try? fileManager.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
         
         var retried = false
-        let options: [NSObject : AnyObject] = [
+        let options: [AnyHashable: Any] = [
             NSSQLitePragmasOption: ["journal_mode": "WAL"],
             NSInferMappingModelAutomaticallyOption: true,
             NSMigratePersistentStoresAutomaticallyOption: autoMigrating
@@ -127,8 +127,7 @@ public class CoreDataStack {
                 let store = try self.coordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: configuration, at: fileURL, options: options)
                 try updateMetadata(store)
                 return
-            } catch {
-                let error = error as NSError
+            } catch (let error as NSError) {
                 guard !retried && resetOnFailure && error.domain == NSCocoaErrorDomain else {
                     throw error
                 }
@@ -139,7 +138,14 @@ public class CoreDataStack {
                     throw error
                 }
                 
-                _ = try? self.coordinator.destroyPersistentStore(at: fileURL, ofType: NSSQLiteStoreType, options: options)
+                if #available(iOS 9.0, *) {
+                    _ = try? self.coordinator.destroyPersistentStore(at: fileURL, ofType: NSSQLiteStoreType, options: options)
+                } else {
+                    let path = fileURL.path
+                    for file in [ path, path + "-shm", path + "-wal"] {
+                        _ = try? fileManager.removeItem(atPath: file)
+                    }
+                }
                 
                 retried = true
             }
@@ -151,7 +157,7 @@ public class CoreDataStack {
     private func updateMetadata(_ store: NSPersistentStore) throws {
         if let entities = self.coordinator.managedObjectModel.entities(forConfigurationName: store.configurationName) {
             for entity in entities {
-                if let meta = self.metadata[entity.managedObjectClassName] where meta.entity != entity && meta.store != store {
+                if let meta = self.metadata[entity.managedObjectClassName], meta.entity != entity && meta.store != store {
                     throw CoreDataError("Class \(entity.managedObjectClassName) has been mapped to \(meta.entity.name!), and can not be mapped to \(entity.name!), one class can only map to one entity")
                 }
                 self.metadata[entity.managedObjectClassName] = (entity: entity, store: store)
@@ -159,7 +165,7 @@ public class CoreDataStack {
         }
     }
 
-    public func metadataForEntityClass(_ type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
+    open func metadataForEntityClass(_ type: NSManagedObject.Type) throws -> (entity: NSEntityDescription, store: NSPersistentStore) {
         if let meta = self.metadata[NSStringFromClass(type)] {
             return meta
         } else {
@@ -167,7 +173,7 @@ public class CoreDataStack {
         }
     }
     
-    public func handleError(_ error: ErrorProtocol) {
+    open func handleError(_ error: Error) {
         let error = error as NSError
         self.lastError = error
         if let onError = self.onError {

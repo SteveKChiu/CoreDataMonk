@@ -39,7 +39,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         return self.provider?.tableView
     }
     
-    var controller: NSFetchedResultsController<EntityType>? {
+    var controller: NSFetchedResultsController<NSFetchRequestResult>? {
         return self.provider?.fetchedResultsController
     }
 
@@ -57,21 +57,21 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     
     @objc func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if let object = self.provider?.objectAtIndexPath(indexPath),
-               cell = self.provider?.onGetCell?(object, indexPath) {
+               let cell = self.provider?.onGetCell?(object, indexPath) {
             return cell
         }
         return UITableViewCell()
     }
     
     @objc func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
-            if let onGetSectionTitle = self.provider?.onGetSectionTitle where section < sectionCount {
+        if let sectionCount = self.provider?.numberOfSections(), sectionCount != self.controller?.sections?.count {
+            if let onGetSectionTitle = self.provider?.onGetSectionTitle, section < sectionCount {
                 return onGetSectionTitle("", section)
             }
             return nil
         }
         
-        if let sections = self.controller?.sections where section < sections.count {
+        if let sections = self.controller?.sections, section < sections.count {
             let title = sections[section].name
             if let onGetSectionTitle = self.provider?.onGetSectionTitle {
                 return onGetSectionTitle(title, section)
@@ -83,7 +83,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func sectionIndexTitles(for tableView: UITableView) -> [String]? {
-        if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
+        if let sectionCount = self.provider?.numberOfSections(), sectionCount != self.controller?.sections?.count {
             return nil
         } else {
             return self.controller?.sectionIndexTitles
@@ -91,7 +91,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
     }
     
     @objc func tableView(_ tableView: UITableView, sectionForSectionIndexTitle title: String, at index: Int) -> Int {
-        if let sectionCount = self.provider?.numberOfSections() where sectionCount != self.controller?.sections?.count {
+        if let sectionCount = self.provider?.numberOfSections(), sectionCount != self.controller?.sections?.count {
             return 0
         } else {
             return self.controller?.section(forSectionIndexTitle: title, at: index) ?? 0
@@ -107,7 +107,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
         }
     }
 
-    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: AnyObject, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+    @objc func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
         if self.isFiltering {
             return
         }
@@ -177,7 +177,7 @@ private class TableViewDataBridge<EntityType: NSManagedObject>
 
 //---------------------------------------------------------------------------
 
-public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider<EntityType> {
+open class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvider<EntityType> {
     public let context: CoreDataMainContext
     private var bridge: TableViewDataBridge<EntityType>!
     
@@ -202,7 +202,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         }
     }
 
-    public override var fetchedResultsController: NSFetchedResultsController<EntityType>? {
+    open override var fetchedResultsController: NSFetchedResultsController<NSFetchRequestResult>? {
         get {
             return super.fetchedResultsController
         }
@@ -219,7 +219,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         self.bridge = TableViewDataBridge<EntityType>(provider: self)
     }
     
-    public func bind(_ tableView: UITableView, onGetCell: OnGetCell) {
+    public func bind(_ tableView: UITableView, onGetCell: @escaping OnGetCell) {
         self.onGetCell = onGetCell
         self.tableView = tableView
     }
@@ -229,7 +229,7 @@ public class TableViewDataProvider<EntityType: NSManagedObject> : ViewDataProvid
         try reload()
     }
 
-    public override func filter() {
+    open override func filter() {
         super.filter()
         self.tableView?.reloadData()
     }
